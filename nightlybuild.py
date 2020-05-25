@@ -194,6 +194,8 @@ class generate():
                 featureWriters=None),
             optimize=False)
         scale_font(font, 2000 / font["head"].unitsPerEm)
+        if not os.path.exists(self.folder_var):
+            os.makedirs(self.folder_var)
         font.save(os.path.join(self.folder_var, fontName + "-VF.ttf"))
         print("    " + fontName + " Variable Font at 2000 UPM generated\n")
 
@@ -333,7 +335,7 @@ class generate():
                 self.glyphs2instances()
                 self.glyphs2Var()
             else:
-                self.glyphsWithMti2instances
                 self.glyphs2VarWithMti()
+                self.glyphsWithMti2instances()
 
 ft = generate()
