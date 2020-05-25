@@ -1,6 +1,20 @@
+# Copyright 2015 Google Inc. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import glyphsLib
-from tools.scalefonts          import scaleFont
+from tools.scalefonts          import scale_font
 from fontTools                 import ttLib
 from fontTools.misc.plistlib   import load as readPlist
 
@@ -69,63 +83,13 @@ class generate():
         return self.designSpaceDocument.loadSourceFonts(Font)
 
     ######################
-    # GENERATE FUNCTIONS #
+    # PREPROCESS SOURCES #
     ######################
-    def ufo2font(self, ufoSource):
-        ufo = Font(ufoSource)
-        ttf = compileTTF(
-                        ufo,
-                        removeOverlaps=True,
-                        useProductionNames=False,
-                        featureWriters=[
-                            KernFeatureWriter(mode="append"),
-                            MarkFeatureWriter
-                            ]
-                        )
-        ttf.save(os.path.join(
-            self.folder_ttf,
-            os.path.basename(ufoSource)[:-4] + ".ttf"))
-        print("    " + self.familyName + " has been generated.\n")
-
-    def designSpace2Var(self):
-        ds = self.designSpace
-        print("\n>>> Load the {} designspace".format(self.familyName))
-        print("    Load " + self.familyName + " files")
-        ds.loadSourceFonts(Font)
-        print("    Start to build Variable Tables")
-        feature_Writers = [KernFeatureWriter(mode="append"), MarkFeatureWriter]
-        font, _, _ = varLib.build(
-            compileInterpolatableTTFsFromDS(
-                ds, featureWriters=feature_Writers), optimize=False)
-        scaleFont(font, 2000)
-        if not os.path.exists(self.folder_var):
-            os.makedirs(self.folder_var)
-        font.save(os.path.join(
-            self.folder_var, self.familyName + "-VF.ttf"))
-        print("    " + self.familyName + " Variable Font generated\n")
-
     def parseGlyphsFile(self):
         self.ufos = glyphsLib.load_to_ufos(open(self.glyphsFilePath))
         font = glyphsLib.parser.load(open(self.glyphsFilePath))
         print("Start working on", self.ufos[0].info.familyName)
         self.designSpaceDocument = glyphsLib.builder.to_designspace(font)
-
-    def glyphs2Var(self):
-        self.parseGlyphsFile()
-        ds = self.designSpaceDocument
-        # family = os.path.basename(self.familyPath)
-        fontName = os.path.basename(self.glyphsFilePath).split("-")[0]
-        print("\n>>> Load the {} designspace".format(fontName))
-        print("    Load "+fontName+" files")
-        ds.loadSourceFonts(Font)
-        print("    Start to build Variable Tables")
-        feature_Writers = [KernFeatureWriter(mode="append"), MarkFeatureWriter]
-        font, _, _ = varLib.build(
-            compileInterpolatableTTFsFromDS(
-                ds, featureWriters=feature_Writers), optimize=False)
-        scaleFont(font, 2000)
-        font.save(os.path.join(self.folder_var, fontName + "-VF.ttf"))
-        print("    " + fontName + " Variable Font at 2000 UPM generated\n")
 
     def add_mti_features_to_master():
         ufoWithMtiData = []
@@ -149,6 +113,71 @@ class generate():
         print("    ufos updated with MTI data")
         return ufoWithMtiData
 
+    ######################
+    # GENERATE FUNCTIONS #
+    ######################
+    def ufo2font(self, ufoSource):
+        ufo = Font(ufoSource)
+        ttf = compileTTF(
+            ufo, removeOverlaps=True,
+            useProductionNames=False,
+            featureWriters=[
+                KernFeatureWriter(mode="append"),
+                MarkFeatureWriter
+                ]
+            )
+        ttf.save(os.path.join(
+            self.folder_ttf,
+            os.path.basename(ufoSource)[:-4] + ".ttf"))
+        otf = compileOTF(
+            ufo, removeOverlaps=True,
+            useProductionNames=False,
+            featureWriters=[
+                KernFeatureWriter(mode="append"),
+                MarkFeatureWriter
+                ]
+            )
+        otf.save(os.path.join(
+            self.folder_otf,
+            os.path.basename(ufoSource)[:-4] + ".otf"))
+        print("    " + self.familyName + " has been generated.\n")
+
+    def designSpace2Var(self):
+        ds = self.designSpace
+        print("\n>>> Load the {} designspace".format(self.familyName))
+        print("    Load " + self.familyName + " files")
+        ds.loadSourceFonts(Font)
+        print("    Start to build Variable Tables")
+        feature_Writers = [KernFeatureWriter(mode="append"), MarkFeatureWriter]
+        font, _, _ = varLib.build(
+            compileInterpolatableTTFsFromDS(
+                ds, featureWriters=feature_Writers), optimize=False)
+        scale_font(font, 2000 / font["head"].unitsPerEm)
+        if not os.path.exists(self.folder_var):
+            os.makedirs(self.folder_var)
+        font.save(os.path.join(
+            self.folder_var, self.familyName + "-VF.ttf"))
+        print("    " + self.familyName + " Variable Font generated\n")
+
+    def glyphs2Var(self):
+        self.parseGlyphsFile()
+        ds = self.designSpaceDocument
+        # family = os.path.basename(self.familyPath)
+        fontName = os.path.basename(self.glyphsFilePath).split("-")[0]
+        print("\n>>> Load the {} designspace".format(fontName))
+        print("    Load "+fontName+" files")
+        ds.loadSourceFonts(Font)
+        print("    Start to build Variable Tables")
+        feature_Writers = [KernFeatureWriter(mode="append"), MarkFeatureWriter]
+        font, _, _ = varLib.build(
+            compileInterpolatableTTFsFromDS(
+                ds, featureWriters=feature_Writers), optimize=False)
+        scale_font(font, 2000 / font["head"].unitsPerEm)
+        if not os.path.exists(self.folder_var):
+            os.makedirs(self.folder_var)
+        font.save(os.path.join(self.folder_var, fontName + "-VF.ttf"))
+        print("    " + fontName + " Variable Font at 2000 UPM generated\n")
+
     def glyphs2VarWithMti(self):
         self.parseGlyphsFile()
         ufoSource = self.add_mti_features_to_master()
@@ -164,12 +193,70 @@ class generate():
                 ds, featureCompilerClass=MtiFeatureCompiler,
                 featureWriters=None),
             optimize=False)
-        scaleFont(font, 2000)
+        scale_font(font, 2000 / font["head"].unitsPerEm)
         font.save(os.path.join(self.folder_var, fontName + "-VF.ttf"))
         print("    " + fontName + " Variable Font at 2000 UPM generated\n")
 
+    def glyphsWithMti2instances(self):
+        self.parseGlyphsFile()
+        ufosSource = self.add_mti_features_to_master()
+        for u in ufosSource:
+            # 1. MAKE TTF
+            ttf = compileTTF(
+                u, removeOverlaps=True,
+                useProductionNames=False,
+                featureWriters=[
+                    KernFeatureWriter(mode="append"),
+                    MarkFeatureWriter
+                    ]
+                )
+            ttf.save(os.path.join(
+                self.folder_ttf,
+                u.info.familyName.replace(" ", "")\
+                +"-"+u.info.styleName.replace(" ", "")+ ".ttf"))
+            # 2. MAKE OTF
+            otf = compileOTF(
+                u, removeOverlaps=True,
+                useProductionNames=False,
+                featureWriters=[
+                    KernFeatureWriter(mode="append"),
+                    MarkFeatureWriter
+                    ]
+                )
+            otf.save(os.path.join(
+                self.folder_otf,
+                u.info.familyName.replace(" ", "")\
+                +"-"+u.info.styleName.replace(" ", "")+ ".ttf"))
+
     def glyphs2instances(self):
         self.parseGlyphsFile()
+        for u in self.ufos:
+            # 1. MAKE TTF
+            ttf = compileTTF(
+                u, removeOverlaps=True,
+                useProductionNames=False,
+                featureWriters=[
+                    KernFeatureWriter(mode="append"),
+                    MarkFeatureWriter
+                    ]
+                )
+            ttf.save(os.path.join(
+                self.folder_ttf,
+                u.info.familyName.replace(" ", "")\
+                +"-"+u.info.styleName.replace(" ", "")+ ".ttf"))
+            # 2. MAKE OTF
+            otf = compileOTF(
+                u, removeOverlaps=True,
+                useProductionNames=False,
+                featureWriters=[
+                    KernFeatureWriter(mode="append"),
+                    MarkFeatureWriter
+                    ]
+                )
+            otf.save(os.path.join(
+                self.folder_otf,
+                u.info.familyName.replace(" ", "")\
+                +"-"+u.info.styleName.replace(" ", "")+ ".ttf"))
 
     def designspace2instances(self):
         fp = FontProject()
@@ -198,13 +285,20 @@ class generate():
             if i.endswith(".glyphs"):
                 print("GLYPHS FILE")
                 self.glyphsFilePath = os.path.join(self.srcFolder, i)
-                self.glyphs2Var()
+                self.glyphsWithOrWithoutMti()
             if i.endswith(".designspace"):
                 print("UFOs FILES")
                 self.filePath = os.path.join(self.srcFolder, i)
-                self.multipleMastersVSsingleMaster()
+                self.multipleMastersVSsingleMasterUfo()
+            elif os.path.isdir((os.path.join(self.srcFolder, i))):
+                for f in os.listdir(os.path.join(self.srcFolder, i)):
+                    if f.endswith(".glyphs"):
+                        self.glyphsFilePath = os.path.join(self.srcFolder, i, f)
+                        self.srcFolder = os.path.join(self.srcFolder, i)
+                        self.glyphsWithOrWithoutMti()
 
-    def multipleMastersVSsingleMaster(self):
+    # DEAL WITH UFO SOURCES
+    def multipleMastersVSsingleMasterUfo(self):
         self.familyName = self.ufoList[0].split("-")[0]
         self.familyPath = self.srcFolder
         self.n = os.path.split(self.familyPath)[1].strip()
@@ -212,26 +306,34 @@ class generate():
         #####################################
         # CASE 1 => MULTIPLE MASTERS FAMILY #
         if len(self.ufoList) > 1:
-            #1 make variable
+            #1. make variable
             self.designSpace2Var()
-            #2 make static ttf fonts
-            # self.designspace2instances()
+            #2. make static ttf fonts
+            self.designspace2instances()
         #############################
         # CASE 2 => ONLY ONE MASTER #
         else:
             print(">>> " + self.n + " family has only one master.\n"\
                   "    A static ttf will be generated instead.")
+            if not os.path.exists(self.folder_ttf):
+                os.makedirs(self.folder_ttf)
+            if not os.path.exists(self.folder_otf):
+                os.makedirs(self.folder_otf)
             ufo = self.ufoList[0]
-            try:
-                self.ufo2font(ufo)
-            except:
-                self.failing.append(ufo)
+            self.ufo2font(os.path.join(self.srcFolder, ufo))
 
-    def glyphsWithOrWithoutMti():
+    # DEAL WITH GLYPHS SOURCES FAMILIES
+    def glyphsWithOrWithoutMti(self):
+        if not os.path.exists(self.folder_ttf):
+            os.makedirs(self.folder_ttf)
+        if not os.path.exists(self.folder_otf):
+            os.makedirs(self.folder_otf)
         for i in os.listdir(self.srcFolder):
             if self.checkMti is False:
+                self.glyphs2instances()
                 self.glyphs2Var()
             else:
+                self.glyphsWithMti2instances
                 self.glyphs2VarWithMti()
 
 ft = generate()

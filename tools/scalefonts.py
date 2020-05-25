@@ -1,253 +1,211 @@
 """
 Script to change UnitsPerEm of a Font
 USAGE:
-    inputFont = ttLib.TTFont(inputPath)
-    scaleFont(inputFont, targetUPM)
-    inputFont.save(outputPath)
+scale-font.py path/to/inputFont.ttf targetUPM path/to/outputFont.ttf
 Only works on .ttf (no CFF) for now
+TO DO: add support for scaling GPOS lookups type 7 and 8
 """
 
 from fontTools import ttLib
+import logging
+from fontTools.misc.fixedTools import otRound
 
-def scaleValue_toUPM(value, UPM, target_UPM):
-    if value < 0.0 :
-        return int ( ( value * target_UPM -0.5 ) / UPM )
-    else:
-        return int ( ( value * target_UPM +0.5 ) / UPM )
+def scale_value_factor(value, scale_factor):
+    return otRound(value * scale_factor)
 
-def scaleLookupType1(subTable, UPM, target_UPM):
+def _scale_lookup_type1(subTable, scale_factor):
+    attrs = ['XAdvance', 'YAdvance', 'XPlacement', 'YPlacement']
+
+    for attr in attrs:
+        if subTable.Format == 1 and hasattr(subTable, attr):
+            setattr(subTable.Value, attr, scale_value_factor(getattr(subTable.Value, attr), scale_factor))
+        elif subTable.Format == 2:
+            for subSubTable in subTable.Value:
+                if hasattr(subSubTable, attr):
+                    setattr(subSubTable, attr, scale_value_factor(getattr(subSubTable, attr), scale_factor))
+
+def _scale_lookup_type2(subTable, scale_factor):
+
     if subTable.Format == 1:
-        for k, v in subTable.Value.__dict__.items():
-            if k == 'XAdvance':
-                subTable.Value.XAdvance = scaleValue_toUPM(v, UPM, target_UPM)
-            elif k == 'YAdvance':
-                subTable.Value.YAdvance = scaleValue_toUPM(v, UPM, target_UPM)
-            elif k == 'XPlacement':
-                subTable.Value.XPlacement = scaleValue_toUPM(v, UPM, target_UPM)
-            elif k == 'YPlacement':
-                subTable.Value.YPlacement = scaleValue_toUPM(v, UPM, target_UPM)                  
-    if subTable.Format == 2:
-        for value in subTable.Value:
-            for k, v in value.__dict__.items():
-                if k == 'XAdvance':
-                    value.XAdvance = scaleValue_toUPM(v, UPM, target_UPM)
-                elif k == 'YAdvance':
-                    value.YAdvance = scaleValue_toUPM(v, UPM, target_UPM)
-                elif k == 'XPlacement':
-                    value.XPlacement = scaleValue_toUPM(v, UPM, target_UPM)
-                elif k == 'YPlacement':
-                    value.YPlacement = scaleValue_toUPM(v, UPM, target_UPM)
+        attrs = ['XAdvance', 'YAdvance', 'XPlacement', 'YPlacement']
+        pairs = [pair for pairSet in subTable.PairSet for pair in pairSet.PairValueRecord]
 
+        for attr in attrs:
+            for pair in pairs:
+                if hasattr(pair.Value1, attr):
+                    setattr(pair.Value1, attr, scale_value_factor(getattr(pair.Value1, attr), scale_factor))
+                if hasattr(pair.Value2, attr):
+                    setattr(pair.Value2, attr, scale_value_factor(getattr(pair.Value2, attr), scale_factor))
 
-def scaleLookupType2(subTable, UPM, target_UPM):
-    # format 1: Single Pairs
-    if subTable.Format == 1:
-        for pairSet in subTable.PairSet:
-            for pair in pairSet.PairValueRecord:
-                if pair.Value1 is not None:
-                    for k, v in pair.Value1.__dict__.items():
-                        if k == 'XAdvance':
-                            pair.Value1.XAdvance = scaleValue_toUPM(v, UPM, target_UPM)
-                        elif k == 'YAdvance':
-                            pair.Value1.YAdvance = scaleValue_toUPM(v, UPM, target_UPM)
-                        elif k == 'XPlacement':
-                            pair.Value1.XPlacement = scaleValue_toUPM(v, UPM, target_UPM)
-                        elif k == 'YPlacement':
-                            pair.Value1.YPlacement = scaleValue_toUPM(v, UPM, target_UPM)
-                if pair.Value2 is not None:
-                    for k, v in pair.Value2.__dict__.items():
-                        if k == 'XAdvance':
-                            pair.Value2.XAdvance = scaleValue_toUPM(v, UPM, target_UPM)
-                        elif k == 'YAdvance':
-                            pair.Value2.YAdvance = scaleValue_toUPM(v, UPM, target_UPM)
-                        elif k == 'XPlacement':
-                            pair.Value2.XPlacement = scaleValue_toUPM(v, UPM, target_UPM)
-                        elif k == 'YPlacement':
-                            pair.Value2.YPlacement = scaleValue_toUPM(v, UPM, target_UPM)
-
-    # format 2: Class Pairs
     elif subTable.Format == 2:
-        for class1Record in subTable.Class1Record:
-            for class2Record in class1Record.Class2Record:
-                if class2Record.Value2 is not None:
-                    for k, v in class2Record.Value2.__dict__.items():
-                        if k == 'XAdvance':
-                            class2Record.Value2.XAdvance = scaleValue_toUPM(v, UPM, target_UPM)
-                        elif k == 'XPlacement':
-                            class2Record.Value2.XPlacement = scaleValue_toUPM(v, UPM, target_UPM)
-                        else:
-                            print("unknown: ", k)
-                if class2Record.Value1 is not None:
-                    for k, v in class2Record.Value1.__dict__.items():
-                        if k == 'XAdvance':
-                            class2Record.Value1.XAdvance = scaleValue_toUPM(v, UPM, target_UPM)
-                        elif k == 'XPlacement':
-                            class2Record.Value1.XPlacement = scaleValue_toUPM(v, UPM, target_UPM)
+        attrs = ['XAdvance', 'XPlacement']
+        class2Records = [class2Record for class1Record in subTable.Class1Record for class2Record in class1Record.Class2Record]
 
+        for attr in attrs:
+            for class2Record in class2Records:
+                if hasattr(class2Record.Value1, attr):
+                    setattr(class2Record.Value1, attr, scale_value_factor(getattr(class2Record.Value1, attr), scale_factor))
+                if hasattr(class2Record.Value2, attr):
+                    setattr(class2Record.Value2, attr, scale_value_factor(getattr(class2Record.Value2, attr), scale_factor))
 
-def scaleLookupType3(subTable, UPM, target_UPM):
-    for entryExitRecord in subTable.EntryExitRecord:
-        entryExitRecord.EntryAnchor.XCoordinate = scaleValue_toUPM(entryExitRecord.EntryAnchor.XCoordinate, UPM, target_UPM)
-        entryExitRecord.EntryAnchor.YCoordinate = scaleValue_toUPM(entryExitRecord.EntryAnchor.YCoordinate, UPM, target_UPM)
-        entryExitRecord.ExitAnchor.XCoordinate = scaleValue_toUPM(entryExitRecord.ExitAnchor.XCoordinate, UPM, target_UPM)
-        entryExitRecord.ExitAnchor.YCoordinate = scaleValue_toUPM(entryExitRecord.ExitAnchor.YCoordinate, UPM, target_UPM)
+def _scale_lookup_type3(subTable, scale_factor):
+    attrs = ['XCoordinate', 'YCoordinate']
 
-def scaleLookupType4(subTable, UPM, target_UPM):
-    for baseRecord in subTable.BaseArray.BaseRecord:
-        for baseAnchor in baseRecord.BaseAnchor:
-            if baseAnchor:
-                baseAnchor.XCoordinate = scaleValue_toUPM(baseAnchor.XCoordinate, UPM, target_UPM)
-                baseAnchor.YCoordinate = scaleValue_toUPM(baseAnchor.YCoordinate, UPM, target_UPM)
-    for markRecord in subTable.MarkArray.MarkRecord:
-        markRecord.MarkAnchor.XCoordinate = scaleValue_toUPM(markRecord.MarkAnchor.XCoordinate, UPM, target_UPM)
-        markRecord.MarkAnchor.YCoordinate = scaleValue_toUPM(markRecord.MarkAnchor.YCoordinate, UPM, target_UPM)
+    for attr in attrs:
+        for entryExitRecord in subTable.EntryExitRecord:
+            if hasattr(entryExitRecord.EntryAnchor, attr):
+                setattr(entryExitRecord.EntryAnchor, attr, scale_value_factor(getattr(entryExitRecord.EntryAnchor, attr), scale_factor))
+            if hasattr(entryExitRecord.ExitAnchor, attr):
+                setattr(entryExitRecord.ExitAnchor, attr, scale_value_factor(getattr(entryExitRecord.ExitAnchor, attr), scale_factor))
 
-def scaleLookupType5(subTable, UPM, target_UPM):    
-    for markRecord in subTable.MarkArray.MarkRecord:     
-        markRecord.MarkAnchor.XCoordinate = scaleValue_toUPM(markRecord.MarkAnchor.XCoordinate, UPM, target_UPM)
-        markRecord.MarkAnchor.YCoordinate = scaleValue_toUPM(markRecord.MarkAnchor.YCoordinate, UPM, target_UPM)
-    for ligatureAttach in subTable.LigatureArray.LigatureAttach:
-        for componentRecord in ligatureAttach.ComponentRecord:
-            for ligatureAnchor in componentRecord.LigatureAnchor:
-                ligatureAnchor.XCoordinate = scaleValue_toUPM(ligatureAnchor.XCoordinate, UPM, target_UPM)
-                ligatureAnchor.YCoordinate = scaleValue_toUPM(ligatureAnchor.YCoordinate, UPM, target_UPM)
+def _scale_lookup_type4(subTable, scale_factor):
+    attrs = ['XCoordinate', 'YCoordinate']
+    baseAnchors = [baseAnchor for attr in attrs for baseRecord in subTable.BaseArray.BaseRecord 
+                    for baseAnchor in baseRecord.BaseAnchor if hasattr(baseAnchor, attr)]
+    markRecords = [markRecord for attr in attrs for markRecord in subTable.MarkArray.MarkRecord 
+                    if hasattr(markRecord, attr)]
+
+    for attr in attrs:
+        for baseAnchor in baseAnchors:
+            setattr(baseAnchor, attr, scale_value_factor(getattr(baseAnchor, attr), scale_factor))
+        for markRecord in markRecords:
+            setattr(markRecord, attr, scale_value_factor(getattr(markRecord, attr), scale_factor))
+
+def _scale_lookup_type5(subTable, scale_factor):
+    attrs = ['XCoordinate', 'YCoordinate']
+    markRecords = [markRecord for markRecord in subTable.MarkArray.MarkRecord]
+    ligatureAnchors = [ligatureAnchor for ligatureAttach in subTable.LigatureArray.LigatureAttach 
+                        for componentRecord in ligatureAttach.ComponentRecord 
+                        for ligatureAnchor in componentRecord.LigatureAnchor if ligatureAnchor]
+
+    for attr in attrs:
+        for markRecord in markRecords:
+            if hasattr(markRecord.MarkAnchor, attr):
+                setattr(markRecord.MarkAnchor, attr, scale_value_factor(getattr(markRecord.MarkAnchor, attr), scale_factor))
+        for ligatureAnchor in ligatureAnchors:
+            if hasattr(ligatureAnchor, attr):
+                setattr(ligatureAnchor, attr, scale_value_factor(getattr(ligatureAnchor, attr), scale_factor))
                 
-def scaleLookupType6(subTable, UPM, target_UPM): 
-    for mark1Record in subTable.Mark1Array.MarkRecord:
-        mark1Record.MarkAnchor.XCoordinate = scaleValue_toUPM(mark1Record.MarkAnchor.XCoordinate, UPM, target_UPM)
-        mark1Record.MarkAnchor.YCoordinate = scaleValue_toUPM(mark1Record.MarkAnchor.YCoordinate, UPM, target_UPM)
-    for mark2Record in subTable.Mark2Array.Mark2Record:
-        for mark2Anchor in mark2Record.Mark2Anchor:
-            mark2Anchor.XCoordinate = scaleValue_toUPM(mark2Anchor.XCoordinate, UPM, target_UPM)
-            mark2Anchor.YCoordinate = scaleValue_toUPM(mark2Anchor.YCoordinate, UPM, target_UPM)
+def _scale_lookup_type6(subTable, scale_factor):
+    attrs = ['XCoordinate', 'YCoordinate']
+    mark2Anchors = [mark2Anchor for mark2Record in subTable.Mark2Array.Mark2Record for mark2Anchor in mark2Record.Mark2Anchor]
 
-def scaleLookupType7(subTable, UPM, target_UPM):
+    for attr in attrs:
+        for mark1Record in subTable.Mark1Array.MarkRecord:
+            if hasattr(mark1Record.MarkAnchor, attr):
+                setattr(mark1Record.MarkAnchor, attr, scale_value_factor(getattr(mark1Record.MarkAnchor, attr), scale_factor))    
+        for mark2Anchor in mark2Anchors:
+            if hasattr(mark2Anchor, attr):
+                setattr(mark2Anchor, attr, scale_value_factor(getattr(mark1Record.MarkAnchor, attr), scale_factor))
+
+def _scale_lookup_type7(subTable, scale_factor):
+    # TO DO
     pass 
     
-def scaleLookupType8(subTable, UPM, target_UPM):
+def _scale_lookup_type8(subTable, scale_factor):
+    # TO DO
     pass        
 
-def scaleFont(tt, target_UPM):
-    UPM = tt['head'].unitsPerEm
-    glyphOrder = tt.getGlyphOrder()
 
-    # Data related to UPM
-    #################################
-    # HEAD
-    tt['head'].unitsPerEm = scaleValue_toUPM(tt['head'].unitsPerEm, UPM, target_UPM)
-    tt['head'].xMin = scaleValue_toUPM(tt['head'].xMin, UPM, target_UPM)
-    tt['head'].yMin = scaleValue_toUPM(tt['head'].yMin, UPM, target_UPM)
-    tt['head'].xMax = scaleValue_toUPM(tt['head'].xMax, UPM, target_UPM)
-    tt['head'].yMax = scaleValue_toUPM(tt['head'].yMax, UPM, target_UPM)
-    #################################
-    # HHEA
-    tt['hhea'].ascent = scaleValue_toUPM(tt['hhea'].ascent, UPM, target_UPM)
-    tt['hhea'].descent = scaleValue_toUPM(tt['hhea'].descent, UPM, target_UPM)
-    tt['hhea'].lineGap = scaleValue_toUPM(tt['hhea'].lineGap, UPM, target_UPM)
-    tt['hhea'].advanceWidthMax = scaleValue_toUPM(tt['hhea'].advanceWidthMax, UPM, target_UPM)
-    tt['hhea'].minLeftSideBearing = scaleValue_toUPM(tt['hhea'].minLeftSideBearing, UPM, target_UPM)
-    tt['hhea'].minRightSideBearing = scaleValue_toUPM(tt['hhea'].minRightSideBearing, UPM, target_UPM)
-    tt['hhea'].xMaxExtent = scaleValue_toUPM(tt['hhea'].xMaxExtent, UPM, target_UPM)
-    #################################
-    # print tt['hhea'].numberOfHMetrics #Number of entries of the hmtx table
-    # print len(glyphOrder)
-    #################################
-    # HMTX
-    for g in glyphOrder:
-        scaledWidth = scaleValue_toUPM(tt['hmtx'].metrics[g][0], UPM, target_UPM)
-        scaledLsb = scaleValue_toUPM(tt['hmtx'].metrics[g][1], UPM, target_UPM)
-        tt['hmtx'].metrics[g] = int(scaledWidth), int(scaledLsb)
-    #################################
-    # OS/2
-    tt['OS/2'].xAvgCharWidth = scaleValue_toUPM(tt['OS/2'].xAvgCharWidth, UPM, target_UPM)
-    tt['OS/2'].ySubscriptXSize = scaleValue_toUPM(tt['OS/2'].ySubscriptXSize, UPM, target_UPM)
-    tt['OS/2'].ySubscriptYSize = scaleValue_toUPM(tt['OS/2'].ySubscriptYSize, UPM, target_UPM)
-    tt['OS/2'].ySubscriptXOffset = scaleValue_toUPM(tt['OS/2'].ySubscriptXOffset, UPM, target_UPM)
-    tt['OS/2'].ySubscriptYOffset = scaleValue_toUPM(tt['OS/2'].ySubscriptYOffset, UPM, target_UPM)
-    tt['OS/2'].ySuperscriptXSize = scaleValue_toUPM(tt['OS/2'].ySuperscriptXSize, UPM, target_UPM)
-    tt['OS/2'].ySuperscriptYSize = scaleValue_toUPM(tt['OS/2'].ySuperscriptYSize, UPM, target_UPM)
-    tt['OS/2'].ySuperscriptXOffset = scaleValue_toUPM(tt['OS/2'].ySuperscriptXOffset, UPM, target_UPM)
-    tt['OS/2'].ySuperscriptYOffset = scaleValue_toUPM(tt['OS/2'].ySuperscriptYOffset, UPM, target_UPM)
-    tt['OS/2'].yStrikeoutSize = scaleValue_toUPM(tt['OS/2'].yStrikeoutSize, UPM, target_UPM)
-    tt['OS/2'].yStrikeoutPosition = scaleValue_toUPM(tt['OS/2'].yStrikeoutPosition, UPM, target_UPM)
-    tt['OS/2'].sTypoAscender = scaleValue_toUPM(tt['OS/2'].sTypoAscender, UPM, target_UPM)
-    tt['OS/2'].sTypoDescender = scaleValue_toUPM(tt['OS/2'].sTypoDescender, UPM, target_UPM)
-    tt['OS/2'].sTypoLineGap = scaleValue_toUPM(tt['OS/2'].sTypoLineGap, UPM, target_UPM)
-    tt['OS/2'].usWinAscent = scaleValue_toUPM(tt['OS/2'].usWinAscent, UPM, target_UPM)
-    tt['OS/2'].usWinDescent = scaleValue_toUPM(tt['OS/2'].usWinDescent, UPM, target_UPM)
-    tt['OS/2'].sxHeight = scaleValue_toUPM(tt['OS/2'].sxHeight, UPM, target_UPM)
-    tt['OS/2'].sCapHeight = scaleValue_toUPM(tt['OS/2'].sCapHeight, UPM, target_UPM)
-
-    # glyf
-    for g in glyphOrder:
-        if tt['glyf'][g].isComposite():
-            for component in tt['glyf'][g].components:
-                component.x = scaleValue_toUPM(component.x, UPM, target_UPM)
-                component.y = scaleValue_toUPM(component.y, UPM, target_UPM)
-
-        if hasattr(tt['glyf'][g], 'xMin'):
-            tt['glyf'][g].xMin = scaleValue_toUPM(tt['glyf'][g].xMin, UPM, target_UPM)
-        if hasattr(tt['glyf'][g], 'yMin'):
-            tt['glyf'][g].yMin = scaleValue_toUPM(tt['glyf'][g].yMin, UPM, target_UPM)
-        if hasattr(tt['glyf'][g], 'xMax'):
-            tt['glyf'][g].xMax = scaleValue_toUPM(tt['glyf'][g].xMax, UPM, target_UPM)
-        if hasattr(tt['glyf'][g], 'yMax'):
-            tt['glyf'][g].yMax = scaleValue_toUPM(tt['glyf'][g].yMax, UPM, target_UPM)
-        for i, c in enumerate(tt['glyf'][g].getCoordinates(tt['glyf'])[0]):
-            scaled_x = scaleValue_toUPM(c[0], UPM, target_UPM)
-            scaled_y = scaleValue_toUPM(c[1], UPM, target_UPM)
-            tt['glyf'][g].getCoordinates(tt['glyf'])[0][i] = (scaled_x, scaled_y)
+def scale_font(font, scale_factor):
+    glyphOrder = font.getGlyphOrder()
     
-    # kern
-    if 'kern' in tt:
-        for i, table in enumerate(tt['kern'].kernTables):
+    logging.info("scaling {} and {}".format('htmx', 'glyf'))
+    for g in glyphOrder:      
+
+        scaled_width = scale_value_factor(font['hmtx'].metrics[g][0], scale_factor)
+        scaled_lsb = scale_value_factor(font['hmtx'].metrics[g][1], scale_factor)
+        font['hmtx'].metrics[g] = (scaled_width, scaled_lsb)
+
+        if font['glyf'][g].isComposite():
+            for component in font['glyf'][g].components:
+                component.x = scale_value_factor(component.x, scale_factor)
+                component.y = scale_value_factor(component.y, scale_factor)
+
+        if hasattr(font['glyf'][g], 'xMin'):
+            font['glyf'][g].xMin = scale_value_factor(font['glyf'][g].xMin, scale_factor)
+        if hasattr(font['glyf'][g], 'yMin'):
+            font['glyf'][g].yMin = scale_value_factor(font['glyf'][g].yMin, scale_factor)
+        if hasattr(font['glyf'][g], 'xMax'):
+            font['glyf'][g].xMax = scale_value_factor(font['glyf'][g].xMax, scale_factor)
+        if hasattr(font['glyf'][g], 'yMax'):
+            font['glyf'][g].yMax = scale_value_factor(font['glyf'][g].yMax, scale_factor)
+        for i, c in enumerate(font['glyf'][g].getCoordinates(font['glyf'])[0]):
+            scaled_x = scale_value_factor(c[0], scale_factor)
+            scaled_y = scale_value_factor(c[1], scale_factor)
+            font['glyf'][g].getCoordinates(font['glyf'])[0][i] = (scaled_x, scaled_y)
+
+    table2attrs = { 'head': ['unitsPerEm', 'xMin', 'yMin', 'xMax', 'yMax'],
+                    'hhea': ['ascent', 'descent', 'lineGap', 'advanceWidthMax', 
+                            'minLeftSideBearing', 'minRightSideBearing', 'xMaxExtent'],
+                    'OS/2': ['xAvgCharWidth', 'ySubscriptXSize', 'ySubscriptYSize', 'ySubscriptXOffset',
+                            'ySubscriptYOffset', 'ySuperscriptXSize', 'ySuperscriptYSize',
+                            'ySuperscriptXOffset', 'ySuperscriptYOffset', 'yStrikeoutSize', 
+                            'yStrikeoutSize', 'yStrikeoutPosition', 'sTypoAscender', 'sTypoDescender',
+                            'sTypoLineGap', 'usWinAscent', 'usWinDescent', 'sxHeight', 'sCapHeight']
+                  }
+
+    for table, attrs in table2attrs.items():
+        for attr in attrs:
+            try:
+                logging.info("scaling {}: {}".format(table, attr))
+                setattr(font[table], attr, scale_value_factor(getattr(font[table], attr), scale_factor))
+            except:
+                logging.info("FAILED scaling {}: {}".format(table, attr))
+
+    if 'kern' in font:
+        logging.info("scaling {}".format('kern'))
+        for i, table in enumerate(font['kern'].kernTables):
             for k in table.kernTable.keys():
-                table[k] = scaleValue_toUPM(table[k], UPM, target_UPM)
+                table[k] = scale_value_factor(table[k], scale_factor)
   
-    # GPOS
-    if not 'GPOS' in tt: return
-    unknownAttributes = []
-    for i, lookup in enumerate(tt['GPOS'].table.LookupList.Lookup):
-        for i, subTable in enumerate(lookup.SubTable):
-            # Lookup Type 1, SinglePos
-            if lookup.LookupType == 1:
-                scaleLookupType1(subTable, UPM, target_UPM)
-            # lookup type 2: PairPos
-            if lookup.LookupType == 2:
-                scaleLookupType2(subTable, UPM, target_UPM)
-            # Lookup Type 3, CursivePos
-            if lookup.LookupType == 3:
-                scaleLookupType3(subTable, UPM, target_UPM)
-            # Lookup Type 4, MarkBasePos
-            if lookup.LookupType == 4:
-                scaleLookupType4(subTable, UPM, target_UPM)
-            # Lookup Type 5, markLigPos
-            if lookup.LookupType == 5:
-                scaleLookupType5(subTable, UPM, target_UPM)
-            # Lookup Type 6, MarkMarkPos
-            if lookup.LookupType == 6:
-                scaleLookupType6(subTable, UPM, target_UPM)
-            # Lookup Type 7, ContextPos
-            if lookup.LookupType == 7:
-                scaleLookupType7(subTable, UPM, target_UPM)
-            # Lookup Type 8, ChainContextPos
-            if lookup.LookupType == 8:
-                scaleLookupType8(subTable, UPM, target_UPM)
-            # Lookup Type 9, ExtensionPos
-            if lookup.LookupType == 9:
-                if subTable.ExtensionLookupType == 1:
-                    scaleLookupType1(subTable.ExtSubTable, UPM, target_UPM)
-                if subTable.ExtensionLookupType == 2:
-                    scaleLookupType2(subTable.ExtSubTable, UPM, target_UPM)
-                if subTable.ExtensionLookupType == 3:
-                    scaleLookupType3(subTable.ExtSubTable, UPM, target_UPM)
-                if subTable.ExtensionLookupType == 4:
-                    scaleLookupType4(subTable.ExtSubTable, UPM, target_UPM)
-                if subTable.ExtensionLookupType == 5:
-                    scaleLookupType5(subTable.ExtSubTable, UPM, target_UPM)
-                if subTable.ExtensionLookupType == 6:
-                    scaleLookupType6(subTable.ExtSubTable, UPM, target_UPM)
-                if subTable.ExtensionLookupType == 7:
-                    scaleLookupType7(subTable.ExtSubTable, UPM, target_UPM)
-                if subTable.ExtensionLookupType == 8:
-                    scaleLookupType8(subTable.ExtSubTable, UPM, target_UPM)
+    if 'GPOS' in font:
+        scale_func = [ _scale_lookup_type1, _scale_lookup_type2, _scale_lookup_type3, 
+                       _scale_lookup_type4, _scale_lookup_type5, _scale_lookup_type6,
+                       _scale_lookup_type7, _scale_lookup_type8 
+                     ]
+
+        for lookup in font['GPOS'].table.LookupList.Lookup:
+            for subTable in lookup.SubTable:
+                logging.info("scaling {}: lookup type {}".format('GPOS', lookup.LookupType ))
+                if lookup.LookupType == 9:
+                    logging.info("scaling {}:\t\t lookup type {}".format('GPOS', subTable.ExtensionLookupType))
+                    scale_func[subTable.ExtensionLookupType - 1](subTable.ExtSubTable, scale_factor)
+                else:
+                    scale_func[lookup.LookupType - 1](subTable, scale_factor)
+
+
+def main(args=None):
+    import argparse
+    parser = argparse.ArgumentParser("scale-font")
+
+    parser.add_argument(
+    "--output", metavar="OUTPUT_FONT", help="If omitted, save Font in place"
+        )
+
+    parser.add_argument(
+    "input_font", metavar="INPUT_FONT", help="Path to input Font to be scaled"
+        )
+
+    parser.add_argument(
+    "upem", metavar="UPEM", type=int, help="Units Per EM of the scaled Font"
+        )
+
+    options = parser.parse_args(args)
+
+    logging.basicConfig(level="INFO")
+
+    font = ttLib.TTFont(options.input_font, lazy=False)
+    scale_factor = options.upem / font['head'].unitsPerEm
+
+    logging.info("scale factor: %s", scale_factor)
+
+    scale_font(font, scale_factor)
+
+    if options.output:
+        font.save(options.output)
+    else:
+        font.save(options.input_font)
+
+if __name__ == '__main__':
+    main()
