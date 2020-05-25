@@ -91,7 +91,7 @@ class generate():
         print("Start working on", self.ufos[0].info.familyName)
         self.designSpaceDocument = glyphsLib.builder.to_designspace(font)
 
-    def add_mti_features_to_master():
+    def add_mti_features_to_master(self):
         ufoWithMtiData = []
         mti_paths = readPlist(self.mti_file)
         for master in self.masters:
