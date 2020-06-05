@@ -1,39 +1,14 @@
-# Copyright 2015 Google Inc. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import os
-import glyphsLib
-from tools.scalefonts          import scale_font
-from fontTools                 import ttLib
-from fontTools.misc.plistlib   import load as readPlist
+import fontmake
+import subprocess
+from fontTools import ttLib
+from tools.scalefonts import scale_font
 
-from fontmake.font_project     import FontProject
 
-from defcon                    import Font
-from ufo2ft                    import compileOTF, compileTTF
-from fontTools                 import varLib
-from fontTools.designspaceLib  import DesignSpaceDocument
-from ufo2ft                    import compileInterpolatableTTFsFromDS
-from ufo2ft.featureCompiler    import (FeatureCompiler, MtiFeatureCompiler)
-from ufo2ft.featureWriters     import (KernFeatureWriter,
-                                        MarkFeatureWriter,
-                                        loadFeatureWriters,
-                                        ast
-                                        )
+
 class generate():
 
-    def __init__(self, ):
+    def __init__(self):
         # INITATE VARIABLE
         self.failing = list()
         self.MMfailing = list()
@@ -179,58 +154,36 @@ class generate():
         print("    " + fontName + " Variable Font at 2000 UPM generated\n")
 
     def glyphs2VarWithMti(self):
-        self.parseGlyphsFile()
-        ufoSource = self.add_mti_features_to_master()
-        ds = self.designSpaceDocument
-        fontName = os.path.basename(self.glyphsFilePath).split("-")[0]
-        print("\n>>> Load the {} designspace".format(fontName))
-        print("    Load "+fontName+" files")
-        ds.loadSourceFonts(Font)
-        print("    Start to build Variable Tables")
-        feature_Writers = MtiFeatureCompiler
-        font, _, _ = varLib.build(
-            compileInterpolatableTTFsFromDS(
-                ds, featureCompilerClass=MtiFeatureCompiler,
-                featureWriters=None),
-            optimize=False)
-        scale_font(font, 2000 / font["head"].unitsPerEm)
         if not os.path.exists(self.folder_var):
             os.makedirs(self.folder_var)
-        font.save(os.path.join(self.folder_var, fontName + "-VF.ttf"))
+        for i in os.listdir(self.srcFolder):
+            if i.endswith(".plist") and "UI" not in i:
+                mti_path = os.path.join(self.srcFolder, i)
+        fontName = os.path.basename(self.glyphsFilePath).split("-")[0]
+        savepath = os.path.join(self.folder_var, fontName + "-VF.ttf")
+        var = subprocess.run(["fontmake", "-g", self.glyphsFilePath,
+            "--mti-source", mti_path, "-o", "variable", "--output-path", savepath])
+        print("    " + fontName + " Variable Font generated\n")
+        font = ttLib.TTFont(savepath)
+        scale_font(font, 2000 / font["head"].unitsPerEm)
         print("    " + fontName + " Variable Font at 2000 UPM generated\n")
 
     def glyphsWithMti2instances(self):
-        self.parseGlyphsFile()
-        ufosSource = self.add_mti_features_to_master()
-        for u in ufosSource:
-            # 1. MAKE TTF
-            ttf = compileTTF(
-                u, removeOverlaps=True,
-                useProductionNames=False,
-                featureWriters=[
-                    KernFeatureWriter(mode="append"),
-                    MarkFeatureWriter
-                    ]
-                )
-            ttf.save(os.path.join(
-                self.folder_ttf,
-                u.info.familyName.replace(" ", "")\
-                +"-"+u.info.styleName.replace(" ", "")+ ".ttf"))
-            # 2. MAKE OTF
-            otf = compileOTF(
-                u, removeOverlaps=True,
-                useProductionNames=False,
-                featureWriters=[
-                    KernFeatureWriter(mode="append"),
-                    MarkFeatureWriter
-                    ]
-                )
-            otf.save(os.path.join(
-                self.folder_otf,
-                u.info.familyName.replace(" ", "")\
-                +"-"+u.info.styleName.replace(" ", "")+ ".ttf"))
+        for i in os.listdir(self.srcFolder):
+            if i.endswith(".plist") and "UI" not in i:
+                mti_path = os.path.join(self.srcFolder, i)
+        if not os.path.exists(self.folder_ttf):
+            os.makedirs(self.folder_ttf)
+        if not os.path.exists(self.folder_otf):
+            os.makedirs(self.folder_otf)
+        ttf = subprocess.run(["fontmake", "-g", self.glyphsFilePath, "-o", "ttf",
+            "--mti-source", mti_path, "--output-dir", self.folder_ttf, "--verbose", "ERROR"])
 
     def glyphs2instances(self):
+        if not os.path.exists(self.folder_ttf):
+            os.makedirs(self.folder_ttf)
+        if not os.path.exists(self.folder_otf):
+            os.makedirs(self.folder_otf)
         self.parseGlyphsFile()
         for u in self.ufos:
             # 1. MAKE TTF
@@ -326,16 +279,11 @@ class generate():
 
     # DEAL WITH GLYPHS SOURCES FAMILIES
     def glyphsWithOrWithoutMti(self):
-        if not os.path.exists(self.folder_ttf):
-            os.makedirs(self.folder_ttf)
-        if not os.path.exists(self.folder_otf):
-            os.makedirs(self.folder_otf)
-        for i in os.listdir(self.srcFolder):
-            if self.checkMti is False:
-                self.glyphs2instances()
-                self.glyphs2Var()
-            else:
-                self.glyphs2VarWithMti()
-                self.glyphsWithMti2instances()
+        if self.checkMti is False:
+            self.glyphs2instances()
+            self.glyphs2Var()
+        else:
+            self.glyphs2VarWithMti()
+            self.glyphsWithMti2instances()
 
 ft = generate()
