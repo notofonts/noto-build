@@ -180,7 +180,10 @@ class Generate():
         #####################################
         # CASE 1 => MULTIPLE MASTERS FAMILY #
         if len(self.ufoList) > 1:
-            self.designSpace2Var()          # make variable
+            try:
+                self.designSpace2Var()      # make variable
+            except:
+                pass
             self.designspace2instances()    # make static ttf fonts
         #############################
         # CASE 2 => ONLY ONE MASTER #
@@ -197,9 +200,15 @@ class Generate():
     def glyphsWithOrWithoutMti(self):
         if self.checkMti is False:
             self.glyphs2instances()         # make static fonts
-            self.glyphs2Var()               # make variable
+            try:
+                self.glyphs2Var()           # make variable
+            except:
+                pass
         else:
-            self.glyphs2VarWithMti()        # make variable
+            try:
+                self.glyphs2VarWithMti()    # make variable
+            except:
+                pass
             self.glyphsWithMti2instances()  # make static fonts
 
 def main():
