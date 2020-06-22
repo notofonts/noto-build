@@ -1,9 +1,7 @@
 """
-Script to change UnitsPerEm of a Font
-USAGE:
-scale-font.py path/to/inputFont.ttf targetUPM path/to/outputFont.ttf
-Only works on .ttf (no CFF) for now
-TO DO: add support for scaling GPOS lookups type 7 and 8
+Scale font function.
+Code from the [scale-font] branch of fontools repository.
+See: https://github.com/fonttools/fonttools/tree/scale-font
 """
 
 from fontTools import ttLib

@@ -3,12 +3,11 @@ import fontmake
 import subprocess
 import shutil
 # from fontTools import ttLib
-# from tools.scalefonts import scale_font
+# from third_party.scalefonts import scale_font
 
-class generate():
+class Generate():
 
     def __init__(self):
-        # INITATE VARIABLE
         self.failing = list()
         self.MMfailing = list()
         self.srcFolder = os.path.join(os.getcwd(), "main", "sources")
@@ -45,7 +44,7 @@ class generate():
         return checkMtiBool
 
     @property
-    def mti_file(self):
+    def mtiFile(self):
         for i in os.listdir(self.srcFolder):
             if i.endswith(".plist") and "UI" not in i:
                 path = os.path.join(self.srcFolder, i)
@@ -55,7 +54,7 @@ class generate():
     def masters(self):
         return self.designSpaceDocument.loadSourceFonts(Font)
 
-    def clean_repo(self):
+    def cleanRepo(self):
         shutil.rmtree(self.master_ufos)
         shutil.rmtree(self.instances_ufos)
 
@@ -98,7 +97,7 @@ class generate():
         savepath = os.path.join(self.folder_var, fontName + "-VF.ttf")
         var = subprocess.run(["fontmake", "-g", self.glyphsFilePath,
             "--mti-source", mti_path, "-o", "variable", "--output-path", savepath,
-            "--feature-writer", "None"])
+            "--feature-writer", "None"], "-a", "'-d'")
         print("    " + fontName + " Variable Font generated\n")
         # font = ttLib.TTFont(savepath)
         # scale_font(font, 2000 / font["head"].unitsPerEm)
@@ -109,8 +108,8 @@ class generate():
                 mti_path = os.path.join(self.srcFolder, i)
         if not os.path.exists(self.folder_ttf):
             os.makedirs(self.folder_ttf)
-        # if not os.path.exists(self.folder_otf):
-        #     os.makedirs(self.folder_otf)
+        if not os.path.exists(self.folder_otf):
+            os.makedirs(self.folder_otf)
         ttf = subprocess.run(["fontmake", "-g", self.glyphsFilePath, "-o", "ttf",
             "--master-dir", self.master_ufos, "--instance-dir", self.instances_ufos,
             "--mti-source", mti_path, "--output-dir", self.folder_ttf, "--verbose", "ERROR",
@@ -120,7 +119,7 @@ class generate():
             "-i", "--interpolate-binary-layout", self.folder_ttf,
             "--output-dir", self.folder_ttf, "--verbose", "ERROR",
             "--feature-writer", "None"])
-        self.clean_repo()
+        self.cleanRepo()
 
     def glyphs2instances(self):
         for i in os.listdir(self.srcFolder):
@@ -136,7 +135,7 @@ class generate():
         otf = subprocess.run(["fontmake", "-g", self.glyphsFilePath, "-o", "otf",
             "--master-dir", self.master_ufos, "--instance-dir", self.instances_ufos,
             "--output-dir", self.folder_otf, "-i", "--verbose", "ERROR"])
-        self.clean_repo()
+        self.cleanRepo()
 
     def designspace2instances(self):
         for i in os.listdir(self.srcFolder):
@@ -197,10 +196,15 @@ class generate():
 
     def glyphsWithOrWithoutMti(self):
         if self.checkMti is False:
-            self.glyphs2instances()         # make static ttf fonts
+            self.glyphs2instances()         # make static fonts
             self.glyphs2Var()               # make variable
         else:
             self.glyphs2VarWithMti()        # make variable
-            # self.glyphsWithMti2instances()  # make static ttf fonts
+            self.glyphsWithMti2instances()  # make static fonts
 
-ft = generate()
+def main():
+    ft = generate()
+
+if __name__ == '__main__':
+    import sys
+    sys.exit(main())
