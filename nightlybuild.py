@@ -203,7 +203,7 @@ class Generate():
             self.glyphsWithMti2instances()  # make static fonts
 
 def main():
-    ft = generate()
+    ft = Generate()
 
 if __name__ == '__main__':
     import sys
