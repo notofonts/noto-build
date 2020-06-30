@@ -68,6 +68,11 @@ class Generate:
     def masters(self):
         return self.designSpaceDocument.loadSourceFonts(Font)
 
+    def scaleFont(self, ftpath):
+        pass
+        # font = ttLib.TTFont(ftpath)
+        # scale_font(font, 2000 / font["head"].unitsPerEm)
+
     def cleanRepo(self):
         shutil.rmtree(self.master_ufos)
         shutil.rmtree(self.instances_ufos)
@@ -122,8 +127,7 @@ class Generate:
                 "ERROR",
             ]
         )
-        font = ttLib.TTFont(savepath)
-        scale_font(font, 2000 / font["head"].unitsPerEm)
+        self.scaleFont(savepath)
         self.autohint(self.folder_var, self.hinted_folder_var)
 
     def glyphs2Var(self):
@@ -147,8 +151,7 @@ class Generate:
                 "ERROR",
             ]
         )
-        font = ttLib.TTFont(savepath)
-        scale_font(font, 2000 / font["head"].unitsPerEm)
+        self.scaleFont(savepath)
         print("    " + fontName + " Variable Font generated\n")
         self.autohint(self.folder_var, self.hinted_folder_var)
 
@@ -176,8 +179,7 @@ class Generate:
             ]
         )
         print("    " + fontName + " Variable Font generated\n")
-        font = ttLib.TTFont(savepath)
-        scale_font(font, 2000 / font["head"].unitsPerEm)
+        self.scaleFont(savepath)
         self.autohint(self.folder_var, self.hinted_folder_var)
 
     def glyphsWithMti2instances(self):
@@ -209,6 +211,30 @@ class Generate:
                 "None",
             ]
         )
+        # Re-run to use ttf as sources to interpolate the GPOS
+        ttf = subprocess.run(
+            [
+                "fontmake",
+                "-g",
+                self.glyphsFilePath,
+                "-o",
+                "ttf",
+                "--master-dir",
+                self.master_ufos,
+                "--instance-dir",
+                self.instances_ufos,
+                "-i",
+                "--interpolate-binary-layout",
+                self.folder_ttf,
+                "--output-dir",
+                self.folder_ttf,
+                "--verbose",
+                "ERROR",
+                "--feature-writer",
+                "None",
+            ]
+        )
+
         otf = subprocess.run(
             [
                 "fontmake",
@@ -224,7 +250,7 @@ class Generate:
                 "--interpolate-binary-layout",
                 self.folder_ttf,
                 "--output-dir",
-                self.folder_ttf,
+                self.folder_otf,
                 "--verbose",
                 "ERROR",
                 "--feature-writer",
@@ -372,10 +398,10 @@ class Generate:
     def glyphsWithOrWithoutMti(self):
         if self.checkMti is False:
             self.glyphs2instances()  # make static fonts
-            # try:
-            #     self.glyphs2Var()  # make variable
-            # except:
-            #     pass
+            try:
+                self.glyphs2Var()  # make variable
+            except:
+                pass
         else:
             try:
                 self.glyphs2VarWithMti()  # make variable
@@ -384,17 +410,21 @@ class Generate:
             self.glyphsWithMti2instances()  # make static fonts
 
     def autohint(self, folder, hintedFolder):
+        print("START")
         for ft in os.listdir(folder):
+            print(folder, ft)
             ftpath = os.path.join(folder, ft)
             hintedFontPath = os.path.join(hintedFolder, ft)
             if not os.path.exists(hintedFolder):
                 os.makedirs(hintedFolder)
-            ttfautohint.ttfautohint(in_file=ftpath,  out_file=hintedFontPath)
+            try:
+                ttfautohint.ttfautohint(in_file=ftpath, out_file=hintedFontPath)
+            except:
+                print("Not possible to autohint the fonts")
 
 
 def main():
     ft = Generate()
-    # help(TALibrary)
 
 if __name__ == "__main__":
     import sys
