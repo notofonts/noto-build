@@ -209,13 +209,13 @@ class Generate:
                 "None",
             ]
         )
-        ttf = subprocess.run(
+        otf = subprocess.run(
             [
                 "fontmake",
                 "-g",
                 self.glyphsFilePath,
                 "-o",
-                "ttf",
+                "otf",
                 "--master-dir",
                 self.master_ufos,
                 "--instance-dir",
