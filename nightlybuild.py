@@ -2,8 +2,7 @@ import os
 import fontmake
 import subprocess
 import shutil
-from fontmake.ttfautohint import ttfautohint
-
+import ttfautohint
 from fontTools import ttLib
 from third_party.scalefonts import scale_font
 
@@ -174,9 +173,7 @@ class Generate:
                 savepath,
                 "--feature-writer",
                 "None",
-            ],
-            "-a",
-            "'-d'",
+            ]
         )
         print("    " + fontName + " Variable Font generated\n")
         font = ttLib.TTFont(savepath)
@@ -375,10 +372,10 @@ class Generate:
     def glyphsWithOrWithoutMti(self):
         if self.checkMti is False:
             self.glyphs2instances()  # make static fonts
-            try:
-                self.glyphs2Var()  # make variable
-            except:
-                pass
+            # try:
+            #     self.glyphs2Var()  # make variable
+            # except:
+            #     pass
         else:
             try:
                 self.glyphs2VarWithMti()  # make variable
@@ -392,12 +389,12 @@ class Generate:
             hintedFontPath = os.path.join(hintedFolder, ft)
             if not os.path.exists(hintedFolder):
                 os.makedirs(hintedFolder)
-            ttfautohint(ftpath, hintedFontPath)
+            ttfautohint.ttfautohint(in_file=ftpath,  out_file=hintedFontPath)
 
 
 def main():
     ft = Generate()
-
+    # help(TALibrary)
 
 if __name__ == "__main__":
     import sys
