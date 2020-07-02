@@ -58,13 +58,6 @@ class Generate:
         return checkMtiBool
 
     @property
-    def mtiFile(self):
-        for i in os.listdir(self.srcFolder):
-            if i.endswith(".plist") and "UI" not in i:
-                path = os.path.join(self.srcFolder, i)
-        return open(path, "rb")
-
-    @property
     def masters(self):
         return self.designSpaceDocument.loadSourceFonts(Font)
 
@@ -133,9 +126,6 @@ class Generate:
     def glyphs2Var(self):
         if not os.path.exists(self.folder_var):
             os.makedirs(self.folder_var)
-        for i in os.listdir(self.srcFolder):
-            if i.endswith(".plist") and "UI" not in i:
-                mti_path = os.path.join(self.srcFolder, i)
         fontName = os.path.basename(self.glyphsFilePath).split("-")[0].split(".")[0]
         savepath = os.path.join(self.folder_var, fontName + "-VF.ttf")
         var = subprocess.run(
@@ -156,10 +146,11 @@ class Generate:
         self.autohint(self.folder_var, self.hinted_folder_var)
 
     def glyphs2VarWithMti(self):
+        print("start")
         if not os.path.exists(self.folder_var):
             os.makedirs(self.folder_var)
         for i in os.listdir(self.srcFolder):
-            if i.endswith(".plist") and "UI" not in i:
+            if i.endswith(".plist"):
                 mti_path = os.path.join(self.srcFolder, i)
         fontName = os.path.basename(self.glyphsFilePath).split("-")[0].split(".")[0]
         savepath = os.path.join(self.folder_var, fontName + "-VF.ttf")
@@ -184,7 +175,7 @@ class Generate:
 
     def glyphsWithMti2instances(self):
         for i in os.listdir(self.srcFolder):
-            if i.endswith(".plist") and "UI" not in i:
+            if i.endswith(".plist"):
                 mti_path = os.path.join(self.srcFolder, i)
         if not os.path.exists(self.folder_ttf):
             os.makedirs(self.folder_ttf)
@@ -246,9 +237,30 @@ class Generate:
                 self.master_ufos,
                 "--instance-dir",
                 self.instances_ufos,
+                "--mti-source",
+                mti_path,
+                "--output-dir",
+                self.folder_otf,
+                "--verbose",
+                "ERROR",
+                "--feature-writer",
+                "None",
+            ]
+        )
+        otf = subprocess.run(
+            [
+                "fontmake",
+                "-g",
+                self.glyphsFilePath,
+                "-o",
+                "otf",
+                "--master-dir",
+                self.master_ufos,
+                "--instance-dir",
+                self.instances_ufos,
                 "-i",
                 "--interpolate-binary-layout",
-                self.folder_ttf,
+                self.folder_otf,
                 "--output-dir",
                 self.folder_otf,
                 "--verbose",
@@ -261,9 +273,6 @@ class Generate:
         self.autohint(self.folder_ttf, self.hinted_folder_ttf)
 
     def glyphs2instances(self):
-        for i in os.listdir(self.srcFolder):
-            if i.endswith(".plist") and "UI" not in i:
-                mti_path = os.path.join(self.srcFolder, i)
         if not os.path.exists(self.folder_ttf):
             os.makedirs(self.folder_ttf)
         if not os.path.exists(self.folder_otf):
@@ -348,6 +357,19 @@ class Generate:
 
         self.autohint(self.folder_ttf, self.hinted_folder_ttf)
 
+    def autohint(self, folder, hintedFolder):
+        print("START")
+        for ft in os.listdir(folder):
+            print(folder, ft)
+            ftpath = os.path.join(folder, ft)
+            hintedFontPath = os.path.join(hintedFolder, ft)
+            if not os.path.exists(hintedFolder):
+                os.makedirs(hintedFolder)
+            try:
+                ttfautohint.ttfautohint(in_file=ftpath, out_file=hintedFontPath)
+            except:
+                print("Not possible to autohint the fonts")
+
     #####################################################################
     # INITIAL FUNCTIONS THAT FINDS IN WHICH CATEGORY THE FAMILY BELONGS #
     #####################################################################
@@ -404,23 +426,13 @@ class Generate:
                 pass
         else:
             try:
+                print("var")
                 self.glyphs2VarWithMti()  # make variable
             except:
                 pass
             self.glyphsWithMti2instances()  # make static fonts
 
-    def autohint(self, folder, hintedFolder):
-        print("START")
-        for ft in os.listdir(folder):
-            print(folder, ft)
-            ftpath = os.path.join(folder, ft)
-            hintedFontPath = os.path.join(hintedFolder, ft)
-            if not os.path.exists(hintedFolder):
-                os.makedirs(hintedFolder)
-            try:
-                ttfautohint.ttfautohint(in_file=ftpath, out_file=hintedFontPath)
-            except:
-                print("Not possible to autohint the fonts")
+
 
 
 def main():
