@@ -1,7 +1,9 @@
 """
-Scale font function.
-Code from the [scale-font] branch of fontools repository.
-See: https://github.com/fonttools/fonttools/tree/scale-font
+Script to change UnitsPerEm of a Font
+USAGE:
+scale-font.py path/to/inputFont.ttf targetUPM path/to/outputFont.ttf
+Only works on .ttf (no CFF) for now
+TO DO: add support for scaling GPOS lookups type 7 and 8
 """
 
 from fontTools import ttLib
@@ -15,7 +17,7 @@ def _scale_lookup_type1(subTable, scale_factor):
     attrs = ['XAdvance', 'YAdvance', 'XPlacement', 'YPlacement']
 
     for attr in attrs:
-        if subTable.Format == 1 and hasattr(subTable, attr):
+        if subTable.Format == 1 and hasattr(subTable.Value, attr):
             setattr(subTable.Value, attr, scale_value_factor(getattr(subTable.Value, attr), scale_factor))
         elif subTable.Format == 2:
             for subSubTable in subTable.Value:
@@ -83,7 +85,7 @@ def _scale_lookup_type5(subTable, scale_factor):
         for ligatureAnchor in ligatureAnchors:
             if hasattr(ligatureAnchor, attr):
                 setattr(ligatureAnchor, attr, scale_value_factor(getattr(ligatureAnchor, attr), scale_factor))
-                
+
 def _scale_lookup_type6(subTable, scale_factor):
     attrs = ['XCoordinate', 'YCoordinate']
     mark2Anchors = [mark2Anchor for mark2Record in subTable.Mark2Array.Mark2Record for mark2Anchor in mark2Record.Mark2Anchor]
@@ -97,19 +99,17 @@ def _scale_lookup_type6(subTable, scale_factor):
                 setattr(mark2Anchor, attr, scale_value_factor(getattr(mark1Record.MarkAnchor, attr), scale_factor))
 
 def _scale_lookup_type7(subTable, scale_factor):
-    # TO DO
-    pass 
-    
+    pass
+
 def _scale_lookup_type8(subTable, scale_factor):
-    # TO DO
-    pass        
+    pass
 
 
 def scale_font(font, scale_factor):
     glyphOrder = font.getGlyphOrder()
-    
+
     logging.info("scaling {} and {}".format('htmx', 'glyf'))
-    for g in glyphOrder:      
+    for g in glyphOrder:
 
         scaled_width = scale_value_factor(font['hmtx'].metrics[g][0], scale_factor)
         scaled_lsb = scale_value_factor(font['hmtx'].metrics[g][1], scale_factor)
@@ -156,11 +156,11 @@ def scale_font(font, scale_factor):
         for i, table in enumerate(font['kern'].kernTables):
             for k in table.kernTable.keys():
                 table[k] = scale_value_factor(table[k], scale_factor)
-  
+
     if 'GPOS' in font:
-        scale_func = [ _scale_lookup_type1, _scale_lookup_type2, _scale_lookup_type3, 
+        scale_func = [ _scale_lookup_type1, _scale_lookup_type2, _scale_lookup_type3,
                        _scale_lookup_type4, _scale_lookup_type5, _scale_lookup_type6,
-                       _scale_lookup_type7, _scale_lookup_type8 
+                       _scale_lookup_type7, _scale_lookup_type8
                      ]
 
         for lookup in font['GPOS'].table.LookupList.Lookup:
