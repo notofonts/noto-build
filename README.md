@@ -39,10 +39,10 @@ Run it in a Terminal, using some of the following arguments:
   * Optional
 * --weight
   * The weight(s) you want
-  * Defaults to Regular if not specified
+  * Defaults to Regular if not specified. But If something is specified (example: Bold) and you want Regular, you need to input it.
 * --width
   * The widths you want
-  * Defaults to Normal if not specified
+  * Defaults to Normal if not specified. But If something is specified (example: Condensed) and you want Normal width, you need to input it.
 * --hinted
   * Downloads hinted fonts
   * Defaults to False
@@ -52,5 +52,12 @@ Examples:
 ```
 python ~/notobuilderCLI.py \
   --contrast Sans \
-  --script Thai
+  --script Latin Thai
+```
+```
+python ~/notobuilderCLI.py \
+  --contrast Serif \
+  --script Telugu Bengali \
+  --weight Light Regular Bold \
+  --name CustomNoto
 ```
