@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright 2020 Google Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,13 +48,13 @@ class Download:
                     "https://api.github.com/repos/notofonts/"
                     + i
                     + "/tree/master/fonts/ttf/unhinted/instance_ttf"
-                )
+                    )
             else:
                 url = (
                     "https://api.github.com/repos/notofonts/"
                     + i
                     + "/tree/master/fonts/ttf/hinted/instance_ttf"
-                )
+                    )
             api_url, dl_folder = self.createUrl(url)
             dest = self.getFilepathFromUrl(url, self.scriptsFolder)
             dest = os.path.join(os.path.dirname(dest), i, "instance_ttf")
@@ -105,34 +106,68 @@ class Download:
         return os.path.join(dirpath, basepath)
 
 
+class GlyphsToRemove:
+
+    def add(self, unicodez:list, scriptname):
+        for x in unicodez:
+            setattr(self, str(x), scriptname)
+
+    def getListFor(self, scriptname):
+        return [x for x in vars(self) if getattr(self, x) == scriptname]
+
+    def getScript(self):
+        return set([getattr(self, x) for x in vars(self)])
+
+    def __str__(self):
+        return str(vars(self))
+
+    def __repr__(self):
+        return str(self)
+
+class Prompt:
+    def __init__(self):
+        self.GlyphsToRemove = GlyphsToRemove()
+
+    def askfor(self, unicodez:list, script1:str, script2:str):
+        request = input(">>> ")
+        if request == "1":
+            self.GlyphsToRemove.add(unicodez, script2)
+        else:
+            self.GlyphsToRemove.add(unicodez, script1)
+
+    def addGlyphToRemove(self, unicodez, scriptname):
+        self.GlyphsToRemove.add(unicodez, scriptname)
+
+    def getGlyphsToRemove(self, scriptname):
+        return self.GlyphsToRemove.getListFor(scriptname)
+
+    def getScriptsToSubset(self):
+        return self.GlyphsToRemove.getScript()
+
+
 class Notobuilder:
 
-    """ 'subsets' is a list of dict {nameOfSubset:[list ofGlypgs2keep]}
-        'writingsystems' is a list. From this list and 2 arguments
-        ('--contrast, i.e. Sans or Serif
-        and '--styles', i.e. Italic, Display, Kufi or Nastaliq),
-        one can pick the right source.
-        If there is more than 1 writingsystem, the class assumes
-        you ask for a merging (with the exception of LGC fonts).
+    """ docstring
     """
 
     def __init__(
-        self,
-        newName,
-        output,
-        writingsystems,
-        contrast,
-        styles,
-        subsets,
-        swapedstyles,
-        weight,
-        width,
-        hinted,
-    ):
+            self,
+            newName,
+            output,
+            writingsystems,
+            contrast,
+            styles,
+            subsets,
+            swapedstyles,
+            weight,
+            width,
+            hinted,
+            ui
+        ):
         self.scriptsFolder = os.path.split(sys.argv[0])[0]
-        self.sources = writingsystems
+        self.writingSystems = writingsystems
         self.newName = " ".join(newName)
-        self.output = ["ttf"]  # otf and variable merger not available at this point
+        self.output = ["ttf"]  # OTF and VF merging not available at this point
         self.subsets = subsets
         self.swapedstyles = swapedstyles
         self.contrast = str(contrast[0])
@@ -143,8 +178,10 @@ class Notobuilder:
         self.default = []
         self.toKeep = dict()
         self.hinted = hinted
-
+        self.uniGlyphsAlreadySorted = list()
         self.path = "instance_ttf"
+        self.ui = ui
+        self.duplicatesAreResolved = False
         # self.unhintedfontpath = "fonts/ttf/unhinted/instance_ttf"
         # self.hintedfontpath = "fonts/ttf/hinted/instance_ttf"
         self.lgcfonts = [
@@ -160,6 +197,7 @@ class Notobuilder:
         self.latn_subset = ["ASCII", "LatinPro", "IPA", "Vietnamese", "Ponctuation"]
         self.cyr__subset = ["Russian", "CyrPro"]
         self.grk__subset = ["Modern", "Polytonic"]
+
         self.repo_naming_translation = {
             "NotoSansKufi": "NotoKufiArabic",
             "NotoSansMusic": "NotoMusic",
@@ -174,23 +212,26 @@ class Notobuilder:
             "NotoSansNaskh": "NotoSansArabic",
         }
         self.fonts_with_ui_version = [
-            "NotoNaskhArabic",
-            "NotoSansArabic",
-            "NotoSansBengali",
-            "NotoSansDevanagari",
-            "NotoSansGujarati",
-            "NotoSansGurmukhi",
             "NotoSansKannada",
-            "NotoSansKhmer",
+            "NotoSansArabic",
+            "NotoSansDevanagari",
             "NotoSansLao",
-            "NotoSansMalayalam",
-            "NotoSansMyanmar",
-            "NotoSansOriya",
-            "NotoSansSinhala",
-            "NotoSansTamil",
-            "NotoSansTelugu",
-            "NotoSansThai",
+            "NotoNaskhArabic"
+            # "NotoSansBengali",
+            # "NotoSansGujarati",
+            # "NotoSansGurmukhi",
+            # "NotoSansKannada",
+            # "NotoSansKhmer",
+            # "NotoSansLao",
+            # "NotoSansMalayalam",
+            # "NotoSansMyanmar",
+            # "NotoSansOriya",
+            # "NotoSansSinhala",
+            # "NotoSansTamil",
+            # "NotoSansTelugu",
+            # "NotoSansThai",
         ]
+
         self.buildRepoName()
 
     @property
@@ -216,9 +257,44 @@ class Notobuilder:
             self._arabicStyle = "Nastaliq"
         return self._arabicStyle
 
+    def readJson(self, jsonpath):
+        with open(jsonpath, 'r') as subsetDict:
+            subset = json.load(subsetDict)
+        for i in subset:
+            if i in self.writingSystems:
+                for g in subset[i]:
+                    if g not in self.panEuropeanSub:
+                        self.panEuropeanSub.append(g)
+
+    def lgcSub(self):
+        self.panEuropeanSub = []
+        lgcSub = [s for s in self.writingSystems if s in ["Latin", "Greek", "Cyrillic"]]
+        if 0 < len(lgcSub) < 3:
+            # add folder
+            europeanSubsetFolder = os.path.join(self.scriptsFolder, "EuropeanSubset")
+            if not os.path.exists(europeanSubsetFolder):
+                os.makedirs(europeanSubsetFolder)
+            # make the list of glyphs to keep
+            for i in lgcSub:
+                self.readJson(os.path.join(
+                        self.scriptsFolder,
+                        "subsets", i.lower() + "_subset.json"
+                        )
+                    )
+            for ftpath in self.fonts2merge_list:
+                if os.path.basename(ftpath).split('-')[0] in self.lgcfonts:
+                    font = self.subsetter(ttLib.TTFont(ftpath), self.panEuropeanSub)
+                    newpath = os.path.join(europeanSubsetFolder, os.path.basename(ftpath))
+                    font.save(newpath)
+                    self.fonts2merge_list.remove(ftpath)
+                    self.fonts2merge_list.append(newpath)
+        else:
+            pass
+
+
     def buildRepoName(self):
         self.repoNames = []
-        for script in self.sources:
+        for script in self.writingSystems:
             if script in ["Latin", "Greek", "Cyrillic"]:
                 name = "Noto" + self.contrast + self.opticalSize + self.italic
             elif script in ["Tamil"]:
@@ -229,7 +305,10 @@ class Notobuilder:
                 name = "Noto" + self.contrast + script
             if name in self.repo_naming_translation:
                 name = self.repo_naming_translation[name]
+            if self.ui is True and name in self.fonts_with_ui_version:
+                name = name+"UI"
             self.repoNames.append(name)
+        print(self.repoNames)
 
         Download(self.repoNames, self.scriptsFolder, self.hinted)
 
@@ -251,87 +330,144 @@ class Notobuilder:
     def buildFonts2mergeList(self):
         for s in self.wghtwdth_styles:
             self.tempStyle = s
+            print(self.tempStyle)
             self.fonts2merge_list = []
+            print("\n> The followings fonts can be merged:")
             for n in self.repoNames:
                 ftname = "-".join([n, s]) + ".ttf"
                 ftpath = os.path.join(self.scriptsFolder, n, self.path, ftname)
                 # if os.path.isfile(ftpath):
                 if Path(ftpath).exists():
-                    print(os.path.basename(ftpath), " exists")
+                    print("  ✓", os.path.basename(ftpath))
                     self.fonts2merge_list.append(ftpath)
                 else:
-                    if "Normal" not in self.width:
-                        for width in [
-                            "Condensed",
-                            "SemiCondensed",
-                            "Compressed",
-                            "Extended",
-                        ]:
-                            self.fonts2merge_list.append(
-                                self.findFallbackStyle(width, ftpath)
-                            )
-                    else:
-                        if os.path.isfile(ftpath.replace(s, "Regular")):
-                            self.fonts2merge_list.append(ftpath.replace(s, "Regular"))
-                        elif os.path.isfile(ftpath.replace(s, "")):
-                            self.fonts2merge_list.append(ftpath.replace(s, ""))
-                        else:
-                            print("No font matches the requirements.")
-            self.merging()
+                    for i in self.width:
+                        if i in self.tempStyle:
+                            if os.path.isfile(ftpath.replace(i, "")):
+                                self.fonts2merge_list.append(ftpath.replace(i, ""))
+                                print("  ✓", os.path.basename(ftpath.replace(i, "")), "[FALLBACK]")
+                            elif os.path.isfile(ftpath.replace(s, "Regular")):
+                                    self.fonts2merge_list.append(ftpath.replace(s, "Regular"))
+                                    print("  ✓", os.path.basename(ftpath.replace(s, "Regular")), "[FALLBACK]")
+                            else:
+                                print("No font matches the requirements. The script", n, "is removed from the list")
+            self.lgcSub()
+            if self.duplicatesAreResolved is False:
+                self.findDuplicate()
+            self.prepFontsForMerging()
 
-    def findFallbackStyle(self, chasse, ftpath):
-        if chasse in self.tempStyle:
-            if (
-                self.tempStyle == chasse
-            ):
-                normalwidthpath = ftpath.replace(chasse, "Regular")
+    def findFallbackStyle(self, width, ftpath):
+        print("TEST FALLBACK")
+        if width in self.tempStyle:
+            if (self.tempStyle == width):
+                normalwidthpath = ftpath.replace(width, "Regular")
                 # BECAUSE "NONNORMALWIDTH-REGULAR" IS CALLED "NONNORMALWIDTH"
             else:
-                normalwidthpath = ftpath.replace(chasse, "")
+                normalwidthpath = ftpath.replace(width, "")
             if Path(normalwidthpath).exists():
+                print(normalwidthpath)
                 return normalwidthpath
             else:
                 print("Not possible to find a fallback for ", os.path.basename(ftpath))
 
+    def ft2uni(self):
+        ft2unilist = dict()
+        for ftpath in self.fonts2merge_list:
+            f = ttLib.TTFont(ftpath)
+            uni_list = list()
+            cmap = f["cmap"].tables
+            for table in cmap:
+                if table.platformID == 3:
+                    for uni, name in table.cmap.items():
+                        if uni not in uni_list:
+                            uni_list.append(uni)
+            ft2unilist[ftpath] = uni_list
+        return ft2unilist
+
+    def findDuplicate(self):
+        self.prompt = Prompt()
+        fonts2test = copy.deepcopy(self.fonts2merge_list)
+        ft2unilist = self.ft2uni()
+
+        while len(fonts2test) > 1:
+            ft2uni_temp =dict()
+            ft2uni_temp[fonts2test[0]] = ft2unilist[fonts2test[0]]
+            for i in fonts2test[1:]:
+                ft2uni_temp[i] = ft2unilist[i]
+                identicAlreadyDone, duplicateTodisplay = self.getIdentic(ft2uni_temp)
+                if len(identicAlreadyDone) != 0:
+                    self.prompt.addGlyphToRemove(identicAlreadyDone, i)
+                if len(duplicateTodisplay) != 0:
+                    characters = self.getChrs(duplicateTodisplay)
+                    print(
+                        "\n>>> The following characters are in both fonts:\n"
+                        + characters
+                        + "\nWhich font should be the default one?"
+                        + "\n  1."
+                        + os.path.basename(fonts2test[0]).split("-")[0]
+                        + "\n  2."
+                        + os.path.basename(fonts2test[1]).split("-")[0]
+                        )
+                    self.prompt.askfor(duplicateTodisplay,
+                        os.path.basename(fonts2test[0]).split("-")[0],
+                        os.path.basename(i).split("-")[0])
+            del fonts2test[0]
+        self.duplicatesAreResolved = True
+
+    def population(self, path):
+        populate = list()
+        uniToremove = self.prompt.getGlyphsToRemove(os.path.basename(path).split("-")[0])
+        uni2glyphname = self.uni2glyphname(path)
+        for uni in uni2glyphname:
+            if str(uni) not in uniToremove:
+                populate.append(uni2glyphname[uni])
+        return populate
+
+    def prepFontsForMerging(self):
+        self.destination = os.path.join(self.scriptsFolder, "Custom_Fonts")
+        if not os.path.exists(self.destination):
+            os.makedirs(self.destination)
+
+        self.actualFonts2merge = list()
+        self.subsettedFonts2remove = list()
+        # print(self.fonts2merge_list)
+        print("\n")
+        for path in self.fonts2merge_list:
+            if os.path.basename(path).split("-")[0] in self.prompt.getScriptsToSubset():
+                print("INFO:", os.path.basename(path).split("-")[0], "subseted")
+                keep = self.population(path)
+                font = self.subsetter(ttLib.TTFont(path), keep)
+                font.save(os.path.join(self.destination, os.path.basename(path)))
+                self.actualFonts2merge.append(os.path.join(
+                    self.destination, os.path.basename(path))
+                    )
+                self.subsettedFonts2remove.append(
+                    os.path.join(self.destination, os.path.basename(path))
+                    )
+            else:
+                self.actualFonts2merge.append(path)
+
+        self.merging()
+
     def merging(self):
-        subsettedFonts2remove = []
-        print("starts merging")
-        actualFonts2merge = list()
-        destination = os.path.join(self.scriptsFolder, "Custom_Fonts")
-        if not os.path.exists(destination):
-            os.makedirs(destination)
+        print("INFO: starts merging")
         merger = merge.Merger()
-        if len(self.default) != 0:
-            pass
-        else:
-            self.reorganizeListOrder()
-        actualFonts2merge.append(self.fonts2merge_list[0])
-        for path in self.fonts2merge_list[1:]:
-            sub = self.duplicate(
-                self.fonts2merge_list[self.fonts2merge_list.index(path) - 1], path
-            )
-            font = self.subsetter(ttLib.TTFont(path), sub)
-            font.save(os.path.join(destination, os.path.basename(path)))
-            actualFonts2merge.append(os.path.join(destination, os.path.basename(path)))
-            subsettedFonts2remove.append(
-                os.path.join(destination, os.path.basename(path))
-            )
-        print([os.path.basename(i) for i in actualFonts2merge])
-        for ftpath in actualFonts2merge:
+
+        for ftpath in self.actualFonts2merge:
             ft, upm = self.upm(ftpath)
             if upm != 1000:
                 scale_font(ft, 1000 / upm)
-        self.font = merger.merge(actualFonts2merge)
+        self.font = merger.merge(self.actualFonts2merge)
         renamed = self.renamer()
         renamed.save(
             os.path.join(
-                destination,
+                self.destination,
                 self.newName.replace(" ", "") + "-" + self.tempStyle + ".ttf",
-            )
-        )
-        for suppr in subsettedFonts2remove:
+                    )
+                )
+        for suppr in self.subsettedFonts2remove:
             os.remove(suppr)
-        print("ends merging\n")
+        print("INFO: ends merging\n")
 
     def uni2glyphname(self, ftpath):
         f = ttLib.TTFont(ftpath)
@@ -347,9 +483,17 @@ class Notobuilder:
     def getIdentic(self, mydict):
         values = list(mydict.values())
         identic = copy.deepcopy(set(values[0]))
+        identic2display = []
+        identicAlreadyDone = []
         for x in values[1:]:
             identic = identic & set(x)
-        return identic
+        for i in identic:
+            if i not in self.uniGlyphsAlreadySorted:
+                self.uniGlyphsAlreadySorted.append(i)
+                identic2display.append(i)
+            else:
+                identicAlreadyDone.append(i)
+        return identicAlreadyDone, identic2display
 
     def duplicate(self, head, tail):
         self.toKeep = {**self.uni2glyphname(head), **self.toKeep}
@@ -383,57 +527,11 @@ class Notobuilder:
 
     def getChrs(self, duplicate):
         s = ""
+        l = []
         for uni in duplicate:
             s += chr(uni) + " "
+            l.append(chr(uni))
         return s
-
-    def detectConflicts(self):
-        self.default = []
-        fonts2test = copy.deepcopy(self.fonts2merge_list)
-        ft2unilist = dict()
-        while len(fonts2test) > 1:
-            for ft in fonts2test[0:]:
-                f = ttLib.TTFont(ft)
-                uni_list = list()
-                cmap = f["cmap"].tables
-                for table in cmap:
-                    if table.platformID == 3:
-                        for uni, name in table.cmap.items():
-                            if uni not in uni_list:
-                                uni_list.append(uni)
-                ft2unilist[ft] = uni_list
-            # for g in ft2unilist:
-            #     print(g, len(ft2unilist[g]))
-            duplicate = self.getIdentic(ft2unilist)
-            characters = self.getChrs(duplicate)
-            if len(duplicate) != 0:
-                print(
-                    "\nThe following characters are in both fonts:\n"
-                    + "    >>> "
-                    + characters
-                    + "\nWhich font should be the default one?"
-                    + "\n1."
-                    + os.path.basename(fonts2test[0]).replace(".ttf", "")
-                    + "\n2."
-                    + os.path.basename(fonts2test[1]).replace(".ttf", "")
-                )
-                request = input(">>> ")
-                self.default.append(fonts2test[int(request) - 1])
-            del fonts2test[0]
-        if len(self.default) != 0:
-            return True
-        else:
-            return False
-
-    def reorganizeListOrder(self):
-        if self.detectConflicts() is True:
-            newOrder = list(self.default)
-            for i in self.fonts2merge_list:
-                if i not in newOrder:
-                    newOrder.append(i)
-            self.fonts2merge_list = newOrder
-        else:
-            pass
 
     def upm(self, ftpath):
         ft = ttLib.TTFont(ftpath)
@@ -509,40 +607,6 @@ class Notobuilder:
 
             return renamedFont
 
-    # def mergerOnlySameWghtWdth(self):
-    #     destination = os.path.join(self.scriptsFolder, "Custom_Fonts")
-    #     if not os.path.exists(destination):
-    #         os.makedirs(destination)
-    #     merger = merge.Merger()
-    #     for style in self.common:
-    #         fonts2merge = list()
-    #         for script in self.repoNames:
-    #             ft_path = os.path.join(
-    #                 self.scriptsFolder, script, self.path, script + "-" + style + ".ttf"
-    #             )
-    #             fonts2merge.append(ft_path)
-    #         ftpath2gorders = self.glyphOrders(fonts2merge)
-    #         actualFonts2merge = list()
-    #         actualFonts2merge.append(fonts2merge[0])
-    #         for path in fonts2merge[1:]:
-    #             sub = ftpath2gorders[path]
-    #             for glyf in sub:
-    #                 if glyf in ftpath2gorders[fonts2merge[fonts2merge.index(path) - 1]]:
-    #                     sub.remove(glyf)
-    #             font = self.subsetter(ttLib.TTFont(path), sub)
-    #             font.save(os.path.join(destination, os.path.basename(path)))
-    #             actualFonts2merge.append(
-    #                 os.path.join(destination, os.path.basename(path))
-    #             )
-    #         self.font = merger.merge(actualFonts2merge)
-    #         renamed = self.renamer()
-    #         renamed.save(
-    #             os.path.join(
-    #                 destination, self.newName.replace(" ", "") + "-" + style + ".ttf"
-    #             )
-    #         )
-
-
 def main():
     parser = ArgumentParser()
     parser.add_argument("-n", "--name", nargs=1)
@@ -555,6 +619,7 @@ def main():
     parser.add_argument("--weight", nargs="*")
     parser.add_argument("--width", nargs="*")
     parser.add_argument("--hinted")
+    parser.add_argument("--ui")
     # parser.add_argument("--vmetrics", nargs=3) # TODO
     args = parser.parse_args()
 
@@ -566,6 +631,7 @@ def main():
     width = ["Normal"]
     styles = ""
     hinted = False
+    ui = False
 
     if "--output" in sys.argv:
         output = args.output
@@ -583,6 +649,8 @@ def main():
         width = args.width
     if "--hinted" in sys.argv:
         hinted = True
+    if "--ui" in sys.argv:
+        ui = True
 
     build = Notobuilder(
         newName,  # optional
@@ -595,6 +663,7 @@ def main():
         weight,  # list of weight. Set as Regular if not specified
         width,  # list of width. Set as Normal if not specified
         hinted,  # take unhinted fonts as default. Hinted ones will be used if option is called with --hinted
+        ui,
     )
 
 
