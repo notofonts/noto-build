@@ -286,6 +286,46 @@ class Generate:
         self.cleanRepo()
         self.autohint(self.folder_ttf, self.hinted_folder_ttf)
 
+    def quadraticGlyphsWithMti2instances(self):
+        for i in os.listdir(self.tempSrcFolder):
+            if i.endswith(".plist"):
+                mti_path = os.path.join(self.tempSrcFolder, i)
+        if not os.path.exists(self.folder_ttf):
+            os.makedirs(self.folder_ttf)
+        if not os.path.exists(self.folder_otf):
+            os.makedirs(self.folder_otf)
+        ttf = subprocess.run(
+            [
+                "fontmake",
+                "-g", self.glyphsFilePath,
+                "--overlaps-backend", "pathops",
+                "-o", "ttf",
+                "--master-dir", self.master_ufos,
+                "--instance-dir", self.instances_ufos,
+                "--mti-source", mti_path,
+                "--output-dir", self.folder_ttf,
+                "--verbose", "ERROR",
+                "--feature-writer", "None",
+            ]
+        )
+
+        otf = subprocess.run(
+            [
+                "fontmake",
+                "-g", self.glyphsFilePath,
+                "--overlaps-backend", "pathops",
+                "-o", "otf",
+                "--master-dir", self.master_ufos,
+                "--instance-dir", self.instances_ufos,
+                "--mti-source", mti_path,
+                "--output-dir", self.folder_otf,
+                "--verbose", "ERROR",
+                "--feature-writer", "None",
+            ]
+        )
+        self.cleanRepo()
+        self.autohint(self.folder_ttf, self.hinted_folder_ttf)
+
     def glyphs2instances(self):
         if not os.path.exists(self.folder_ttf):
             os.makedirs(self.folder_ttf)
@@ -327,7 +367,6 @@ class Generate:
                 "ERROR",
             ]
         )
-        self.cleanRepo()
         self.autohint(self.folder_ttf, self.hinted_folder_ttf)
 
     def designspace2instances(self):
@@ -397,12 +436,14 @@ class Generate:
                 print("UFOs FILES")
                 self.filePath = os.path.join(self.srcFolder, i)
                 self.multipleMastersVSsingleMasterUfo()
-            elif os.path.isdir((os.path.join(self.srcFolder, i))):
+            elif os.path.isdir((os.path.join(self.srcFolder, i))): # "Arimo", "Tinos" & "Cousine" families
+                import pathops
                 for f in os.listdir(os.path.join(self.srcFolder, i)):
                     if f.endswith(".glyphs"):
+                        print(f)
                         self.glyphsFilePath = os.path.join(self.srcFolder, i, f)
-                        self.srcFolder = os.path.join(self.srcFolder, i)
-                        self.glyphsWithOrWithoutMti()
+                        self.tempSrcFolder = os.path.join(self.srcFolder, i)
+                        self.quadraticGlyphsWithMti2instances()
 
     def multipleMastersVSsingleMasterUfo(self):
         self.familyName = self.ufoList[0].split("-")[0]
@@ -440,7 +481,6 @@ class Generate:
                 pass
         else:
             try:
-                print("var")
                 self.glyphs2VarWithMti()  # make variable
             except:
                 pass
@@ -454,5 +494,4 @@ def main():
 
 if __name__ == "__main__":
     import sys
-
     sys.exit(main())
