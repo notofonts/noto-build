@@ -38,7 +38,7 @@ class Download:
         self.repoNames = repo_names
         self.scriptsFolder = scriptsFolder
         self.hinted = hinted
-        print("dl begin")
+        print(">>> Download begin")
         self.dwnldSources()
 
     def dwnldSources(self):
@@ -61,7 +61,7 @@ class Download:
             if not os.path.exists(dest):
                 os.makedirs(dest)
             total_files = 0
-            print(api_url)
+            # print(api_url)
             response = urllib.request.urlretrieve(api_url)
             with open(response[0], "r") as f:
                 data_brutes = f.read()
@@ -84,7 +84,7 @@ class Download:
 
     def createUrl(self, url):
         branch = re.findall(r"/tree/(.*?)/", url)
-        print(branch)
+        # print(branch)
         api_url = url.replace("https://github.com", "https://api.github.com/repos")
         if len(branch) == 0:
             branch = re.findall(r"/blob/(.*?)/", url)[0]
@@ -307,10 +307,11 @@ class Notobuilder:
                 name = self.repo_naming_translation[name]
             if self.ui is True and name in self.fonts_with_ui_version:
                 name = name+"UI"
-            self.repoNames.append(name)
+            if name not in self.repoNames:
+                self.repoNames.append(name)
         print(self.repoNames)
 
-        Download(self.repoNames, self.scriptsFolder, self.hinted)
+        # Download(self.repoNames, self.scriptsFolder, self.hinted)
 
         self.buildWghtWdthstyleName()
 
@@ -324,17 +325,21 @@ class Notobuilder:
                     self.wghtwdth_styles.append(wdth)
                 else:
                     self.wghtwdth_styles.append(wdth + wght)
-
+        print(self.wghtwdth_styles)
         self.buildFonts2mergeList()
 
     def buildFonts2mergeList(self):
         for s in self.wghtwdth_styles:
             self.tempStyle = s
-            print(self.tempStyle)
             self.fonts2merge_list = []
             print("\n> The followings fonts can be merged:")
             for n in self.repoNames:
                 ftname = "-".join([n, s]) + ".ttf"
+                if 'Italic' in ftname:
+                    old = '-Italic-'+s
+                    new ="-"+s+"Italic"
+                    ftname = ftname.replace(old, new.replace("Regular", "")) #remove Reg in the Italic case)
+                    print(ftname)
                 ftpath = os.path.join(self.scriptsFolder, n, self.path, ftname)
                 # if os.path.isfile(ftpath):
                 if Path(ftpath).exists():
@@ -462,7 +467,7 @@ class Notobuilder:
         renamed.save(
             os.path.join(
                 self.destination,
-                self.newName.replace(" ", "") + "-" + self.tempStyle + ".ttf",
+                self.newName.replace(" ", "") + "-" + self.tempStyle + self._slant +".ttf",
                     )
                 )
         for suppr in self.subsettedFonts2remove:
@@ -635,9 +640,9 @@ def main():
 
     if "--output" in sys.argv:
         output = args.output
-    if "-styles" in sys.argv:
+    if "--styles" in sys.argv:
         styles = args.styles
-    if "-n" in sys.argv:
+    if "-n" in sys.argv or "--name" in sys.argv:
         newName = args.name
     if "--swap" in sys.argv:
         swapedstyles = args.swap
