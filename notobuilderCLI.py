@@ -165,6 +165,7 @@ class Notobuilder:
         width,
         hinted,
         ui,
+        metrics
     ):
         self.scriptsFolder = os.path.split(sys.argv[0])[0]
         self.writingSystems = writingsystems
@@ -184,6 +185,7 @@ class Notobuilder:
         self.path = "instance_ttf"
         self.ui = ui
         self.duplicatesAreResolved = False
+        self.metrics = [int(i) for i in metrics]
         # self.unhintedfontpath = "fonts/ttf/unhinted/instance_ttf"
         # self.hintedfontpath = "fonts/ttf/hinted/instance_ttf"
         self.lgcfonts = [
@@ -212,6 +214,17 @@ class Notobuilder:
             "NotoSerifTamil-Italic": "NotoSerifTamil-Slanted",
             "NotoSansTamil-Italic": "NotoSansTamil",  # Does not exists, but Serif "Italic" (slanted) does.
             "NotoSansNaskh": "NotoSansArabic",
+            "NotoSerifMonoDisplay": "NotoSerifDisplay",
+            "NotoSerifMono": "NotoSerif",
+            "NotoSerifMono-Italic": "NotoSerif-Italic",
+            "NotoSerifDisplayMono": "NotoSerifDisplay",
+            "NotoSerifDisplayMono-Italic": "NotoSerifDisplay-Italic",
+            "NotoSansMono-Italic": "NotoSansMono",
+            "NotoSansDisplayMono-Italic": "NotoSansMono",
+            "NotoSansDisplayMono": "NotoSansMono",
+
+
+
         }
         self.fonts_with_ui_version = [
             "NotoSansKannada",
@@ -234,7 +247,15 @@ class Notobuilder:
             # "NotoSansThai",
         ]
 
+        print(self.metrics)
         self.buildRepoName()
+
+    @property
+    def monospaced(self):
+        self._monospaced = ""
+        if "Mono" in self.styles:
+            self._monospaced = "Mono"
+        return self._monospaced
 
     @property
     def opticalSize(self):
@@ -299,7 +320,7 @@ class Notobuilder:
         self.repoNames = []
         for script in self.writingSystems:
             if script in ["Latin", "Greek", "Cyrillic"]:
-                name = "Noto" + self.contrast + self.opticalSize + self.italic
+                name = "Noto" + self.contrast + self.opticalSize + self.monospaced +self.italic
             elif script in ["Tamil"]:
                 name = "Noto" + self.contrast + script + self.italic
             elif script == "Arabic":
@@ -314,9 +335,9 @@ class Notobuilder:
                 self.repoNames.append(name)
         print(self.repoNames)
 
-        Download(self.repoNames, self.scriptsFolder, self.hinted)
+        # Download(self.repoNames, self.scriptsFolder, self.hinted)
 
-        self.buildWghtWdthstyleName()
+        # self.buildWghtWdthstyleName()
 
     def buildWghtWdthstyleName(self):
         self.wghtwdth_styles = []
@@ -485,6 +506,8 @@ class Notobuilder:
             if upm != 1000:
                 scale_font(ft, 1000 / upm)
         self.font = merger.merge(self.actualFonts2merge)
+        if len(metrics) > 0:
+            self.font = self.updateMetrics(self.font)
         renamed = self.renamer()
         cleanedNewName = (
             self.newName.replace(" ", "")
@@ -501,6 +524,24 @@ class Notobuilder:
         for suppr in self.subsettedFonts2remove:
             os.remove(suppr)
         print("INFO: ends merging\n")
+
+    def updateMetrics(self, ft):
+        ascendent = self.metrics[0]
+        descendent = self.metrics[1]
+
+        OS_2 = ft.get('OS/2')
+        OS_2.sTypoAscender = ascendent
+        OS_2.sTypoDescender = descendent
+        OS_2.sTypoLineGap = 0
+        OS_2.usWinAscent = ascendent
+        OS_2.usWinDescent = descendent
+
+        hhea = f.get('hhea')
+        hhea.ascent = ascendent
+        hhea.descent = -descendent
+        hhea.lineGap = 0
+
+        return ft
 
     def uni2glyphname(self, ftpath):
         f = ttLib.TTFont(ftpath)
@@ -654,7 +695,7 @@ def main():
     parser.add_argument("--width", nargs="*")
     parser.add_argument("--hinted")
     parser.add_argument("--ui")
-    # parser.add_argument("--vmetrics", nargs=3) # TODO
+    parser.add_argument("--metrics", nargs=2)
     args = parser.parse_args()
 
     newName = "Personal Noto"
@@ -666,6 +707,7 @@ def main():
     styles = ""
     hinted = False
     ui = False
+    metrics = []
 
     if "--output" in sys.argv:
         output = args.output
@@ -685,6 +727,8 @@ def main():
         hinted = True
     if "--ui" in sys.argv:
         ui = True
+    if "--metrics" in sys.argv:
+        metrics = args.metrics
 
     build = Notobuilder(
         newName,  # optional
@@ -698,7 +742,8 @@ def main():
         width,  # list of width. Set as Normal if not specified
         hinted,  # take unhinted fonts as default. Hinted ones will be used if option is called with --hinted
         ui,
-    )
+        metrics
+        )
 
 
 if __name__ == "__main__":
