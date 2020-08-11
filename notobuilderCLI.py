@@ -247,7 +247,6 @@ class Notobuilder:
             # "NotoSansThai",
         ]
 
-        print(self.metrics)
         self.buildRepoName()
 
     @property
@@ -335,9 +334,9 @@ class Notobuilder:
                 self.repoNames.append(name)
         print(self.repoNames)
 
-        # Download(self.repoNames, self.scriptsFolder, self.hinted)
+        Download(self.repoNames, self.scriptsFolder, self.hinted)
 
-        # self.buildWghtWdthstyleName()
+        self.buildWghtWdthstyleName()
 
     def buildWghtWdthstyleName(self):
         self.wghtwdth_styles = []
