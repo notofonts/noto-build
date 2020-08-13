@@ -33,6 +33,8 @@ from fontTools import merge
 from argparse import ArgumentParser
 from third_party.scalefonts import scale_font
 
+# import logging
+
 
 class Download:
     def __init__(self, repo_names, scriptsFolder, hinted):
@@ -62,7 +64,6 @@ class Download:
             if not os.path.exists(dest):
                 os.makedirs(dest)
             total_files = 0
-            # print(api_url)
             response = urllib.request.urlretrieve(api_url)
             with open(response[0], "r") as f:
                 data_brutes = f.read()
@@ -78,7 +79,6 @@ class Download:
                         with requests.get(file_url) as response:
                             binary = response.content
                             self.writeBin(temp_path, binary)
-                            # print(".")
 
     def writeBin(self, path, binary):
         with open(path, "wb") as f:
@@ -86,7 +86,6 @@ class Download:
 
     def createUrl(self, url):
         branch = re.findall(r"/tree/(.*?)/", url)
-        # print(branch)
         api_url = url.replace("https://github.com", "https://api.github.com/repos")
         if len(branch) == 0:
             branch = re.findall(r"/blob/(.*?)/", url)[0]
@@ -109,15 +108,25 @@ class Download:
 
 
 class GlyphsToRemove:
+
     def add(self, unicodez: list, scriptname):
         for x in unicodez:
             setattr(self, str(x), scriptname)
+
+    def addGlyphToRemove(self, unicodez, scriptname):
+        self.add(unicodez, scriptname)
 
     def getListFor(self, scriptname):
         return [x for x in vars(self) if getattr(self, x) == scriptname]
 
     def getScript(self):
         return set([getattr(self, x) for x in vars(self)])
+
+    def getGlyphsToRemove(self, scriptname):
+        return self.GlyphsToRemove(scriptname)
+
+    def getScriptsToSubset(self):
+        return self.getScript()
 
     def __str__(self):
         return str(vars(self))
@@ -126,25 +135,6 @@ class GlyphsToRemove:
         return str(self)
 
 
-class Prompt:
-    def __init__(self):
-        self.GlyphsToRemove = GlyphsToRemove()
-
-    def askfor(self, unicodez: list, script1: str, script2: str):
-        request = input(">>> ")
-        if request == "1":
-            self.GlyphsToRemove.add(unicodez, script2)
-        else:
-            self.GlyphsToRemove.add(unicodez, script1)
-
-    def addGlyphToRemove(self, unicodez, scriptname):
-        self.GlyphsToRemove.add(unicodez, scriptname)
-
-    def getGlyphsToRemove(self, scriptname):
-        return self.GlyphsToRemove.getListFor(scriptname)
-
-    def getScriptsToSubset(self):
-        return self.GlyphsToRemove.getScript()
 
 
 class Notobuilder:
@@ -185,7 +175,9 @@ class Notobuilder:
         self.path = "instance_ttf"
         self.ui = ui
         self.duplicatesAreResolved = False
-        self.metrics = [int(i) for i in metrics]
+        if len(metrics) != 0:
+            self.metrics = [int(i) for i in metrics]
+        else: self.metrics = metrics
         # self.unhintedfontpath = "fonts/ttf/unhinted/instance_ttf"
         # self.hintedfontpath = "fonts/ttf/hinted/instance_ttf"
         self.lgcfonts = [
@@ -246,6 +238,9 @@ class Notobuilder:
             # "NotoSansTelugu",
             # "NotoSansThai",
         ]
+
+        #TODO : Add alist of writing system that exist only in Sans
+        # or only in serif to correct the repo name.
 
         self.buildRepoName()
 
@@ -365,7 +360,6 @@ class Notobuilder:
                         old, new.replace("Regular", "")
                         )  # remove Reg in the Italic case)
                 ftpath = os.path.join(self.scriptsFolder, n, self.path, ftname)
-                # if os.path.isfile(ftpath):
                 if Path(ftpath).exists():
                     print("  ✓", os.path.basename(ftpath))
                     self.fonts2merge_list.append(ftpath)
@@ -396,7 +390,7 @@ class Notobuilder:
                                     )
             self.lgcSub()
             if self.duplicatesAreResolved is False:
-                self.findDuplicate()
+                self.resolveDuplicate()
             self.prepFontsForMerging()
 
     def findFallbackStyle(self, width, ftpath):
@@ -408,7 +402,7 @@ class Notobuilder:
             else:
                 normalwidthpath = ftpath.replace(width, "")
             if Path(normalwidthpath).exists():
-                print(normalwidthpath)
+                # print(normalwidthpath)
                 return normalwidthpath
             else:
                 print("Not possible to find a fallback for ", os.path.basename(ftpath))
@@ -427,8 +421,8 @@ class Notobuilder:
             ft2unilist[ftpath] = uni_list
         return ft2unilist
 
-    def findDuplicate(self):
-        self.prompt = Prompt()
+    def resolveDuplicate(self):
+        self.duplicatedToRemove = GlyphsToRemove()
         fonts2test = copy.deepcopy(self.fonts2merge_list)
         ft2unilist = self.ft2uni()
 
@@ -439,29 +433,16 @@ class Notobuilder:
                 ft2uni_temp[i] = ft2unilist[i]
                 identicAlreadyDone, duplicateTodisplay = self.getIdentic(ft2uni_temp)
                 if len(identicAlreadyDone) != 0:
-                    self.prompt.addGlyphToRemove(identicAlreadyDone, i)
+                    self.duplicatedToRemove.addGlyphToRemove(identicAlreadyDone, i)
                 if len(duplicateTodisplay) != 0:
-                    characters = self.getChrs(duplicateTodisplay)
-                    print(
-                        "\n>>> The following characters are in both fonts:\n"
-                        + characters
-                        + "\nWhich font should be the default one?"
-                        + "\n  1."
-                        + os.path.basename(fonts2test[0]).split("-")[0]
-                        + "\n  2."
-                        + os.path.basename(fonts2test[1]).split("-")[0]
-                        )
-                    self.prompt.askfor(
-                        duplicateTodisplay,
-                        os.path.basename(fonts2test[0]).split("-")[0],
-                        os.path.basename(i).split("-")[0],
-                        )
+                    # print("DUP:", self.getChrs(duplicateTodisplay))
+                    self.duplicatedToRemove.addGlyphToRemove(duplicateTodisplay, i)
             del fonts2test[0]
         self.duplicatesAreResolved = True
 
     def population(self, path):
         populate = list()
-        uniToremove = self.prompt.getGlyphsToRemove(
+        uniToremove = self.duplicatedToRemove.getGlyphsToRemove(
             os.path.basename(path).split("-")[0]
             )
         uni2glyphname = self.uni2glyphname(path)
@@ -477,10 +458,9 @@ class Notobuilder:
 
         self.actualFonts2merge = list()
         self.subsettedFonts2remove = list()
-        # print(self.fonts2merge_list)
         print("\n")
         for path in self.fonts2merge_list:
-            if os.path.basename(path).split("-")[0] in self.prompt.getScriptsToSubset():
+            if os.path.basename(path).split("-")[0] in self.duplicatedToRemove.getScriptsToSubset():
                 print("INFO:", os.path.basename(path).split("-")[0], "subseted")
                 keep = self.population(path)
                 font = self.subsetter(ttLib.TTFont(path), keep)
@@ -505,7 +485,7 @@ class Notobuilder:
             if upm != 1000:
                 scale_font(ft, 1000 / upm)
         self.font = merger.merge(self.actualFonts2merge)
-        if len(metrics) > 0:
+        if len(self.metrics) > 0:
             self.font = self.updateMetrics(self.font)
         renamed = self.renamer()
         cleanedNewName = (
