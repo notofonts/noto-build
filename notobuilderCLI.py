@@ -350,7 +350,7 @@ class Notobuilder:
                 self.repoNames.append(name)
         print(self.repoNames)
 
-        # Download(self.repoNames, self.scriptsFolder, self.hinted)
+        Download(self.repoNames, self.scriptsFolder, self.hinted)
 
         self.buildWghtWdthstyleName()
 
