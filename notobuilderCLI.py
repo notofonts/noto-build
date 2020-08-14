@@ -21,6 +21,7 @@ import urllib.request
 import requests
 import copy
 import re
+import shutil
 
 # import fontmake
 
@@ -32,6 +33,7 @@ from fontTools.subset import Options
 from fontTools import merge
 from argparse import ArgumentParser
 from third_party.scalefonts import scale_font
+from fontTools.ttLib.tables._n_a_m_e import makeName
 
 # import logging
 
@@ -59,6 +61,7 @@ class Download:
                     + "/tree/master/fonts/ttf/hinted/instance_ttf"
                     )
             api_url, dl_folder = self.createUrl(url)
+            # print(api_url, dl_folder)
             dest = self.getFilepathFromUrl(url, self.scriptsFolder)
             dest = os.path.join(os.path.dirname(dest), i, "instance_ttf")
             if not os.path.exists(dest):
@@ -123,7 +126,7 @@ class GlyphsToRemove:
         return set([getattr(self, x) for x in vars(self)])
 
     def getGlyphsToRemove(self, scriptname):
-        return self.GlyphsToRemove(scriptname)
+        return self.getListFor(scriptname)
 
     def getScriptsToSubset(self):
         return self.getScript()
@@ -155,12 +158,15 @@ class Notobuilder:
         width,
         hinted,
         ui,
-        metrics
+        metrics,
+        compatibility,
+        subs
     ):
         self.scriptsFolder = os.path.split(sys.argv[0])[0]
         self.writingSystems = writingsystems
-        self.newName = " ".join(newName)
-        self.output = ["ttf"]  # OTF and VF merging not available at this point
+        self.newName = str(" ".join(newName))
+        self.output = "."+output[0]  # OTF and VF merging not available at this point
+        self.flavor = output[0]
         self.subsets = subsets
         self.swapedstyles = swapedstyles
         self.contrast = str(contrast[0])
@@ -178,6 +184,8 @@ class Notobuilder:
         if len(metrics) != 0:
             self.metrics = [int(i) for i in metrics]
         else: self.metrics = metrics
+        self.compatibility = compatibility
+        self.subs = subs
         # self.unhintedfontpath = "fonts/ttf/unhinted/instance_ttf"
         # self.hintedfontpath = "fonts/ttf/hinted/instance_ttf"
         self.lgcfonts = [
@@ -190,6 +198,7 @@ class Notobuilder:
             "NotoSansDisplay-Italic",
             "NotoSerifDisplay",
         ]
+
         self.latn_subset = ["ASCII", "LatinPro", "IPA", "Vietnamese", "Ponctuation"]
         self.cyr__subset = ["Russian", "CyrPro"]
         self.grk__subset = ["Modern", "Polytonic"]
@@ -200,10 +209,10 @@ class Notobuilder:
             "NotoSerifMusic": "NotoMusic",
             "NotoSerifNaskh": "NotoNaskhArabic",
             "NotoSerifNaskhUI": "NotoNaskhArabicUI",
-            "NotoSerifUrdu": "NotoNastaliqUrdu",
+            "NotoSerifNastaliq": "NotoNastaliqUrdu",
             "NotoSerifHebrew": "NotoRashiHebrew",
             "NotoSerifNushu": "NotoTraditionalNushu",
-            "NotoSerifTamil-Italic": "NotoSerifTamil-Slanted",
+            "NotoSerifTamil-Italic": "NotoSerifTamilSlanted",
             "NotoSansTamil-Italic": "NotoSansTamil",  # Does not exists, but Serif "Italic" (slanted) does.
             "NotoSansNaskh": "NotoSansArabic",
             "NotoSerifMonoDisplay": "NotoSerifDisplay",
@@ -214,6 +223,11 @@ class Notobuilder:
             "NotoSansMono-Italic": "NotoSansMono",
             "NotoSansDisplayMono-Italic": "NotoSansMono",
             "NotoSansDisplayMono": "NotoSansMono",
+            "NotoSerifIndicSiyaqNumbers" : "NotoSansIndicSiyaqNumbers",
+            "NotoSerifTraditionalNushu" : "NotoTraditionalNushu",
+            "NotoSansTraditionalNushu" : "NotoTraditionalNushu",
+            "NotoSerifTamilSupplement": "NotoSansTamilSupplement",
+
 
 
 
@@ -266,6 +280,13 @@ class Notobuilder:
         return self._slant
 
     @property
+    def italicName(self):
+        self._ital = ""
+        if "Italic" in self.styles:
+            self._ital = "Italic"
+        return self._ital
+
+    @property
     def arabicStyle(self):
         self._arabicStyle = "Naskh"
         if "Kufi" in self.styles:
@@ -286,7 +307,7 @@ class Notobuilder:
     def lgcSub(self):
         self.panEuropeanSub = []
         lgcSub = [s for s in self.writingSystems if s in ["Latin", "Greek", "Cyrillic"]]
-        if 0 < len(lgcSub) < 3:
+        if 0 < len(lgcSub) < 3 and self.subsets != "Full":
             # add folder
             europeanSubsetFolder = os.path.join(self.scriptsFolder, "EuropeanSubset")
             if not os.path.exists(europeanSubsetFolder):
@@ -329,21 +350,34 @@ class Notobuilder:
                 self.repoNames.append(name)
         print(self.repoNames)
 
-        Download(self.repoNames, self.scriptsFolder, self.hinted)
+        # Download(self.repoNames, self.scriptsFolder, self.hinted)
 
         self.buildWghtWdthstyleName()
 
     def buildWghtWdthstyleName(self):
-        self.wghtwdth_styles = []
-        for wdth in self.width:
-            for wght in self.weight:
-                if wdth == "Normal":
-                    self.wghtwdth_styles.append(wght)
-                elif wght == "Regular":
-                    self.wghtwdth_styles.append(wdth)
-                else:
-                    self.wghtwdth_styles.append(wdth + wght)
-        print(self.wghtwdth_styles)
+        if self.compatibility is True:
+            common = set()
+            family2weightwidth = dict()
+            for family in self.repoNames:
+                repoPath = os.path.join(self.scriptsFolder, family, self.path)
+                weightwidth = list()
+                for ft in os.listdir(repoPath):
+                    weightwidth.append(ft.split("-")[1].replace(".ttf", ""))
+                family2weightwidth[family] = weightwidth
+            common = set(family2weightwidth[self.repoNames[0]])
+            for i in family2weightwidth:
+                common = common & set(family2weightwidth[i])
+            self.wghtwdth_styles = list(common)
+        else:
+            self.wghtwdth_styles = []
+            for wdth in self.width:
+                for wght in self.weight:
+                    if wdth == "Normal":
+                        self.wghtwdth_styles.append(wght)
+                    elif wght == "Regular":
+                        self.wghtwdth_styles.append(wdth)
+                    else:
+                        self.wghtwdth_styles.append(wdth + wght)
         self.buildFonts2mergeList()
 
     def buildFonts2mergeList(self):
@@ -366,16 +400,19 @@ class Notobuilder:
                 else:
                     for i in self.width:
                         if i in self.tempStyle:
-                            if os.path.isfile(ftpath.replace(i, "")):
+                            if os.path.isfile(os.path.join(
+                                    os.path.dirname(ftpath), os.path.basename(ftpath.replace(i, "")))):
                                 self.fonts2merge_list.append(ftpath.replace(i, ""))
                                 print(
                                     "  ✓",
                                     os.path.basename(ftpath.replace(i, "")),
                                     "[FALLBACK]",
                                     )
-                            elif os.path.isfile(ftpath.replace(s, "Regular")):
+                            elif os.path.isfile(os.path.join(
+                                    os.path.dirname(ftpath), os.path.basename(ftpath.replace(s, "Regular")))):
                                 self.fonts2merge_list.append(
-                                    ftpath.replace(s, "Regular")
+                                    ftpath.replace(ftpath, os.path.join(
+                                    os.path.dirname(ftpath), os.path.basename(ftpath.replace(s, "Regular"))))
                                     )
                                 print(
                                     "  ✓",
@@ -388,6 +425,27 @@ class Notobuilder:
                                     n,
                                     "is removed from the list",
                                     )
+                        else:
+                            if os.path.isfile(os.path.join(
+                                    os.path.dirname(ftpath), os.path.basename(ftpath.replace(s, "Regular")))):
+                                self.fonts2merge_list.append(
+                                    ftpath.replace(ftpath, os.path.join(
+                                    os.path.dirname(ftpath), os.path.basename(ftpath.replace(s, "Regular"))))
+                                    )
+                                print(
+                                    "  ✓",
+                                    os.path.basename(ftpath.replace(s, "Regular")),
+                                    "[FALLBACK]",
+                                    )
+                            else:
+                                print(
+                                    "No font matches the requirements. The script",
+                                    n,
+                                    "is removed from the list",
+                                    )
+                        ###
+
+
             self.lgcSub()
             if self.duplicatesAreResolved is False:
                 self.resolveDuplicate()
@@ -427,16 +485,18 @@ class Notobuilder:
         ft2unilist = self.ft2uni()
 
         while len(fonts2test) > 1:
-            ft2uni_temp = dict()
-            ft2uni_temp[fonts2test[0]] = ft2unilist[fonts2test[0]]
+            # ft2uni_temp = dict()
+            # ft2uni_temp[fonts2test[0]] = ft2unilist[fonts2test[0]]
             for i in fonts2test[1:]:
+                ft2uni_temp = dict()
+                ft2uni_temp[fonts2test[0]] = ft2unilist[fonts2test[0]]
                 ft2uni_temp[i] = ft2unilist[i]
                 identicAlreadyDone, duplicateTodisplay = self.getIdentic(ft2uni_temp)
                 if len(identicAlreadyDone) != 0:
-                    self.duplicatedToRemove.addGlyphToRemove(identicAlreadyDone, i)
+                    self.duplicatedToRemove.addGlyphToRemove(identicAlreadyDone, os.path.basename(i).split("-")[0])
                 if len(duplicateTodisplay) != 0:
                     # print("DUP:", self.getChrs(duplicateTodisplay))
-                    self.duplicatedToRemove.addGlyphToRemove(duplicateTodisplay, i)
+                    self.duplicatedToRemove.addGlyphToRemove(duplicateTodisplay, os.path.basename(i).split("-")[0])
             del fonts2test[0]
         self.duplicatesAreResolved = True
 
@@ -483,7 +543,9 @@ class Notobuilder:
         for ftpath in self.actualFonts2merge:
             ft, upm = self.upm(ftpath)
             if upm != 1000:
+                print("Scale", os.path.basename(ftpath), "at 1000 upm")
                 scale_font(ft, 1000 / upm)
+                ft.save(ftpath)
         self.font = merger.merge(self.actualFonts2merge)
         if len(self.metrics) > 0:
             self.font = self.updateMetrics(self.font)
@@ -493,8 +555,10 @@ class Notobuilder:
             + "-"
             + self.tempStyle
             + self._slant.replace("-", "")
-            + ".ttf"
+            + self.output
             )
+        if self.flavor == "woff2":
+            renamed.flavor = self.flavor
         renamed.save(
             os.path.join(
                 self.destination, cleanedNewName.replace("RegularItalic", "Italic")
@@ -502,7 +566,17 @@ class Notobuilder:
             )
         for suppr in self.subsettedFonts2remove:
             os.remove(suppr)
+        # for r in self.repoNames:
+        #     shutil.rmtree(os.path.join(self.scriptsFolder, r))
         print("INFO: ends merging\n")
+        if self.subs != "":
+            customDir = os.path.join(self.scriptsFolder, "Custom_Fonts")
+            for ftpath in os.listdir(customDir):
+                if ftpath.endswith(".ttf"):
+                    kept = str(self.subs)
+                    print(kept)
+                    font = self.customSubsetting(ttLib.TTFont(os.path.join(customDir, ftpath)), kept)
+                    font.save(os.path.join(customDir, os.path.basename(ftpath)))
 
     def updateMetrics(self, ft):
         ascendent = self.metrics[0]
@@ -561,17 +635,6 @@ class Notobuilder:
                 populate.append(i)
         return populate
 
-    def commonStyles(self):
-        styles_dict = {}
-        for family in self.repoNames:
-            style_list = []
-            ftfolderpath = os.path.join(self.scriptsFolder, family, self.path)
-            for i in os.listdir(ftfolderpath):
-                style_list.append(i.split("-")[1].replace(".ttf", ""))
-            styles_dict[family] = style_list
-        self.common = self.getIdentic(styles_dict)
-        self.merger()
-
     def glyphOrders(self, fontpathlist):
         ftpath2glyphorder = dict()
         for fpath in fontpathlist:
@@ -591,9 +654,26 @@ class Notobuilder:
         upm = ft["head"].unitsPerEm
         return ft, upm
 
+    # def subsetOptions(self):
+    #     options = Options()
+    #     options.layout_features = ""  # keep all GSUB/GPOS features
+    #     options.glyph_names = False  # keep post glyph names
+    #     options.legacy_cmap = True  # keep non-Unicode cmaps
+    #     options.name_legacy = True  # keep non-Unicode names
+    #     options.name_IDs = ["*"]  # keep all nameIDs
+    #     options.name_languages = ["*"]  # keep all name languages
+    #     options.notdef_outline = False
+    #     options.ignore_missing_glyphs = True
+    #     options.prune_unicode_ranges = True
+
+    #     return options
+
     def subsetter(self, font, subset):
+        """ use the noto fonts glyphsnames
+            to subset fonts with premade subsettings
+        """
         options = Options()
-        options.layout_features = ""  # keep all GSUB/GPOS features
+        options.layout_features = "*"  # keep all GSUB/GPOS features
         options.glyph_names = False  # keep post glyph names
         options.legacy_cmap = True  # keep non-Unicode cmaps
         options.name_legacy = True  # keep non-Unicode names
@@ -602,8 +682,32 @@ class Notobuilder:
         options.notdef_outline = False
         options.ignore_missing_glyphs = True
         options.prune_unicode_ranges = True
+        options.recommended_glyphs = True
         subsetter = Subsetter(options=options)
         subsetter.populate(glyphs=subset)
+        subsetter.subset(font)
+
+        return font
+
+    def customSubsetting(self, font, text):
+        """ use the given text
+            to subset fonts
+        """
+        # if " " not in text:
+        #     text += " "
+        options = Options()
+        options.layout_features = "*"  # keep all GSUB/GPOS features
+        options.glyph_names = False  # keep post glyph names
+        options.legacy_cmap = True  # keep non-Unicode cmaps
+        options.name_legacy = True  # keep non-Unicode names
+        options.name_IDs = ["*"]  # keep all nameIDs
+        options.name_languages = ["*"]  # keep all name languages
+        options.notdef_outline = False
+        options.ignore_missing_glyphs = False
+        options.recommended_glyphs = True
+        options.prune_unicode_ranges = True
+        subsetter = Subsetter(options=options)
+        subsetter.populate(text=text, unicodes=[0, 13, 32])
         subsetter.subset(font)
 
         return font
@@ -615,6 +719,9 @@ class Notobuilder:
         pass
 
     def renamer(self):
+        print("start renaming")
+        isThere17 = False
+        isThere16 = False
         if self.newName:
             renamedFont = self.font
             for namerecord in renamedFont["name"].names:
@@ -627,6 +734,9 @@ class Notobuilder:
                     name = namerecord.string
                 if namerecord.nameID == 17:
                     WeightName = namerecord.string
+            print("1", WeightName)
+            WeightName = self.tempStyle
+            print("2", WeightName)
             for namerecord in renamedFont["name"].names:
                 namerecord.string = namerecord.toUnicode()
                 # Create the naming of the font Family + style if the style is non RBIBI
@@ -635,7 +745,23 @@ class Notobuilder:
                         namerecord.string = self.newName
                     else:
                         namerecord.string = self.newName + " " + WeightName
+                if namerecord.nameID == 2:
+                    if self.italicName == "Italic":
+                        if WeightName not in ["Bold", "Bold Italic"]:
+                            namerecord.string = "Italic"
+                        elif WeightName == "Bold":
+                            namerecord.string = "Bold Italic"
+                    elif WeightName == "Bold":
+                        namerecord.string = "Bold"
+                    else:
+                        namerecord.string = "Regular"
                 if namerecord.nameID == 3:
+                    if self.italicName == "Italic":
+                        if WeightName == "Regular":
+                            WeightName = "Italic"
+                        else:
+                            WeightName = WeightName.replace("Italic", "")+ " " +self.italicName
+                    print("3", WeightName)
                     unicID = namerecord.string.split(";")
                     newUnicID = (
                         unicID[0]
@@ -645,7 +771,7 @@ class Notobuilder:
                         + "".join(self.newName.split(" "))
                         + "-"
                         + "".join(WeightName.split(" "))
-                    )
+                        )
                     namerecord.string = newUnicID
                 if namerecord.nameID == 4:
                     namerecord.string = self.newName + " " + WeightName
@@ -654,9 +780,22 @@ class Notobuilder:
                         "".join(self.newName.split(" "))
                         + "-"
                         + "".join(WeightName.split(" "))
-                    )
+                        )
                 if namerecord.nameID == 16:
                     namerecord.string = self.newName
+                    isThere16 = True
+                if namerecord.nameID == 17:
+                    namerecord.string = WeightName
+                    isThere17 = True
+
+            if isThere17 is False:
+                if WeightName not in ["Italic", "Regular", "Bold", "Bold Italic"]:
+                    n17_p3 = (makeName(WeightName, 17, 3, 1, 0x409))
+                    renamedFont['name'].names.append(n17_p3)
+            if isThere16 is False:
+                if WeightName not in ["Italic", "Regular", "Bold", "Bold Italic"]:
+                    n16_p3 = makeName(self.newName, 16, 3, 1, 0x409)
+                    renamedFont['name'].names.append(n16_p3)
 
             return renamedFont
 
@@ -675,9 +814,12 @@ def main():
     parser.add_argument("--hinted")
     parser.add_argument("--ui")
     parser.add_argument("--metrics", nargs=2)
+    parser.add_argument("--subs", nargs=1)
+    parser.add_argument("--compatibility", action="store_true")
     args = parser.parse_args()
 
     newName = "Personal Noto"
+    subs = ""
     subsets = list()
     swapedstyles = list()
     output = ["ttf"]
@@ -687,6 +829,7 @@ def main():
     hinted = False
     ui = False
     metrics = []
+    compatibility = False
 
     if "--output" in sys.argv:
         output = args.output
@@ -706,8 +849,12 @@ def main():
         hinted = True
     if "--ui" in sys.argv:
         ui = True
+    if args.compatibility:
+        compatibility = True
     if "--metrics" in sys.argv:
         metrics = args.metrics
+    if "--subs" in sys.argv:
+        subs = args.subs
 
     build = Notobuilder(
         newName,  # optional
@@ -721,7 +868,9 @@ def main():
         width,  # list of width. Set as Normal if not specified
         hinted,  # take unhinted fonts as default. Hinted ones will be used if option is called with --hinted
         ui,
-        metrics
+        metrics,
+        compatibility,
+        subs
         )
 
 

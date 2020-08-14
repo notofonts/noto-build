@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <title>Noto-Build UI</title>
+        <link rel="preconnect" href="https://cdn.jsdelivr.net">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/css/bootstrap.min.css" integrity="sha256-Ww++W3rXBfapN8SZitAvc9jw2Xb+Ixt0rvDsmWmQyTo=" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.js" integrity="sha256-NSuqgY2hCZJUN6hDMFfdxvkexI7+iLxXQbL540RQ/c4=" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@fabiocaccamo/utils.js@0.11.0/dist/utils.min.js" integrity="sha256-S60ZC8AUyIS3MyisO+OjgRrgiJ86OIozBq4f/RLmYGg=" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/clipboard.js@1.0.1/dist/clipboard.min.js" integrity="sha256-HUQP8SUHMJ/pHYah14Em47rjRwTvxaADBSuOJI9DuiU=" crossorigin="anonymous"></script>
+        <style>
+            html, body {
+                width: 100%;
+                height: 100%;
+            }
+            a, a:link, a:focus, a:hover, a:visited {
+                color: #000000;
+                text-decoration: underline;
+            }
+            a:focus, a:hover {
+                text-decoration-style: wavy;
+            }
+            .container {
+                max-width: 900px;
+            }
+            .disabled {
+                pointer-events: none;
+                opacity: 0.4;
+            }
+            .command-container {
+                position: sticky;
+                bottom: 0;
+                z-index: 10;
+                background-color: rgba(255, 255, 255, 0.9);
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app" class="container" v-if="ready">
+            <div class="row">
+                <div class="col-12 mt-4 text-nowrap">
+                    <h1 class="h1">noto-build-ui</h1>
+                    <p class="small"><a href="https://github.com/notofonts/noto-build" target="_blank">view on GitHub &nearr;</a></p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 text-nowrap mt-4">
+                    <label class="control-name h5 d-block mb-3">Name</label>
+                    <div class="row">
+                        <div class="col-12 col-md-6 mb-2">
+                            <input class="form-control form-control-sm" v-model="options.name" type="text" placeholder="">
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Output</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-2" v-for="item in choices.output">
+                            <div class="custom-control form-control-sm custom-checkbox" v-bind:class="{ 'disabled': item.disabled }">
+                                <input type="checkbox" v-model="options.output" v-bind:id="'output-' + item.value|slugify" v-bind:value="item.value" class="custom-control-input">
+                                <label class="custom-control-label" v-bind:for="'output-' + item.value|slugify">{{ item.name|upper }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Writing Systems<sup>*</sup></label>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3" v-for="item in choices.scripts" v-if="item.featured || showAllScripts">
+                            <div class="custom-control form-control-sm custom-checkbox" v-bind:class="{ 'control-featured':item.featured }">
+                                <input type="checkbox" v-model="options.scripts" v-bind:id="'scripts-' + item.value|slugify" v-bind:value="item.value" v-on:change="onChangeScripts" class="custom-control-input" required>
+                                <label class="custom-control-label" v-bind:for="'scripts-' + item.value|slugify">
+                                    <template v-if="item.featured && showAllScripts"><strong>{{ item.name }}</strong></template>
+                                    <template v-else>{{ item.name }}</template>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mt-3 text-center">
+                            <button type="button" class="btn btn-sm text-secondary btn-link border-0" @click="toggleShowAllScripts">
+                                <small>
+                                    <template v-if="showAllScripts">Show less&hellip;</template>
+                                    <template v-else>Show more&hellip;</template>
+                                </small>
+                            </button>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Contrast<sup>*</sup></label>
+                    <div class="row">
+                        <div class="col-6 col-sm-2" v-for="item in choices.contrast">
+                            <div class="custom-control form-control-sm custom-radio">
+                                <input type="radio" v-model="options.contrast" v-bind:id="'contrast-' + item.value|slugify" v-bind:value="item.value" class="custom-control-input" required>
+                                <label class="custom-control-label" v-bind:for="'contrast-' + item.value|slugify">{{ item.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Styles</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-2" v-for="item in choices.styles">
+                            <div class="custom-control form-control-sm custom-checkbox" v-bind:class="{ 'disabled': item.disabled }">
+                                <input type="checkbox" v-model="options.styles" v-bind:id="'styles-' + item.value|slugify" v-bind:value="item.value" v-bind:disabled="item.disabled" class="custom-control-input">
+                                <label class="custom-control-label" v-bind:for="'styles-' + item.value|slugify">{{ item.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Weight</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3" v-for="item in choices.weight">
+                            <div class="custom-control form-control-sm custom-checkbox">
+                                <input type="checkbox" v-model="options.weight" v-bind:id="'weight-' + item.value|slugify" v-bind:value="item.value" class="custom-control-input">
+                                <label class="custom-control-label" v-bind:for="'weight-' + item.value|slugify">{{ item.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Width</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3" v-for="item in choices.width">
+                            <div class="custom-control form-control-sm custom-checkbox">
+                                <input type="checkbox" v-model="options.width" v-bind:id="'width-' + item.value|slugify" v-bind:value="item.value" class="custom-control-input">
+                                <label class="custom-control-label" v-bind:for="'width-' + item.value|slugify">{{ item.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Metrics</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3 mb-2" v-for="(item, key) in choices.metrics">
+                            <div class="input-group input-group-sm">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text bg-white border-0 pl-0 pr-3">{{ item.name }}</span>
+                                </div>
+                                <input type="number" class="form-control text-center rounded" placeholder="0" v-model="options.metrics[key]">
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Hinted</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3">
+                            <div class="custom-control form-control-sm custom-checkbox">
+                                <input type="checkbox" id="hinted" class="custom-control-input" v-model="options.hinted">
+                                <label class="custom-control-label" for="hinted">{{ choices.hinted.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">UI</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3">
+                            <div class="custom-control form-control-sm custom-checkbox">
+                                <input type="checkbox" id="ui" class="custom-control-input" v-model="options.ui">
+                                <label class="custom-control-label" for="ui">{{ choices.ui.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <label class="control-name h5 d-block mb-3">Subsetting</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3 mt-2 mb-4" v-for="group in choices.subset">
+                            <label class="control-name d-block h6">{{ group.name }}</label>
+                            <div class="custom-control form-control-sm custom-checkbox" v-for="item in group.subsets" v-bind:class="{ 'disabled': item.disabled }">
+                                <input type="checkbox" v-model="options.subset" v-bind:id="'subset-' + item.name|slugify" v-bind:value="item.value" v-bind:disabled="item.disabled" class="custom-control-input">
+                                <label class="custom-control-label" v-bind:for="'subset-' + item.name|slugify">{{ item.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="control-name d-block h6">Custom characters</label>
+                            <textarea class="form-control form-control-sm" rows="3" v-model="options.subset_chars"></textarea>
+                        </div>
+                    </div>
+                    <!-- <hr> -->
+                </div>
+            </div>
+            <div class="command-container">
+                <div class="row border-top">
+                    <div class="col-12 pt-4 pb-4">
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="control-name d-block h6 white">Command</label>
+                                <div class="bg-light border rounded d-block">
+                                    <code class="small d-block pt-2 pb-2 pl-3 pr-3" v-bind:class="{ 'disabled': !commandOk }">{{ command }}</code>
+                                </div>
+                            </div>
+                            <div class="col-12 text-right" v-bind:class="{ 'disabled': !commandOk }">
+                                <template v-if="copyCommandDone">
+                                    <button type="button" class="btn btn-sm btn-info border-0 pl-3 pr-3">&#x2713; Copied!</button>
+                                </template>
+                                <template v-else>
+                                    <button type="button" class="btn btn-sm btn-dark border-0 pl-3 pr-3" @click="copyCommand">&laquo; Copy</button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            new Vue({
+                el: '#app',
+                data: function() {
+                    return {
+                        ready: false,
+                        choices: {
+                            output: [
+                                // {
+                                //     name:'OTF',
+                                //     value:'otf'
+                                // },
+                                {
+                                    name:'TTF',
+                                    value:'ttf'
+                                },
+                                // {
+                                //     name:'VAR',
+                                //     value:'var'
+                                // },
+                                {
+                                    name:'WOFF2',
+                                    value:'woff2'
+                                }
+                            ],
+                            scripts: [
+                                {
+                                    name:'Adlam',
+                                    value:'Adlam'
+                                },
+                                {
+                                    name:'Arabic',
+                                    value:'Arabic',
+                                    featured: true
+                                },
+                                {
+                                    name:'Armenian',
+                                    value:'Armenian',
+                                    featured: true
+                                },
+                                {
+                                    name:'Avestan',
+                                    value:'Avestan'
+                                },
+                                {
+                                    name:'Balinese',
+                                    value:'Balinese'
+                                },
+                                {
+                                    name:'Bamum',
+                                    value:'Bamum'
+                                },
+                                {
+                                    name:'Batak',
+                                    value:'Batak'
+                                },
+                                {
+                                    name:'Bengali',
+                                    value:'Bengali',
+                                    featured: true
+                                },
+                                {
+                                    name:'Brahmi',
+                                    value:'Brahmi'
+                                },
+                                {
+                                    name:'Buginese',
+                                    value:'Buginese'
+                                },
+                                {
+                                    name:'Buhid',
+                                    value:'Buhid'
+                                },
+                                {
+                                    name:'Burmese',
+                                    value:'Burmese',
+                                    featured: true
+                                },
+                                {
+                                    name:'Canadian Aboriginal',
+                                    value:'CanadianAboriginal',
+                                    featured: true
+                                },
+                                {
+                                    name:'Carian',
+                                    value:'Carian'
+                                },
+                                {
+                                    name:'Chakma',
+                                    value:'Chakma'
+                                },
+                                {
+                                    name:'Cham',
+                                    value:'Cham'
+                                },
+                                {
+                                    name:'Cherokee',
+                                    value:'Cherokee',
+                                    featured: true
+                                },
+                                {
+                                    name:'Coptic',
+                                    value:'Coptic'
+                                },
+                                {
+                                    name:'Cuneiform',
+                                    value:'Cuneiform'
+                                },
+                                {
+                                    name:'Cypriot',
+                                    value:'Cypriot'
+                                },
+                                {
+                                    name:'Cyrillic',
+                                    value:'Cyrillic',
+                                    featured: true
+                                },
+                                {
+                                    name:'Deseret',
+                                    value:'Deseret'
+                                },
+                                {
+                                    name:'Devanagari',
+                                    value:'Devanagari',
+                                    featured: true
+                                },
+                                {
+                                    name:'Ethiopic',
+                                    value:'Ethiopic',
+                                    featured: true
+                                },
+                                {
+                                    name:'Georgian',
+                                    value:'Georgian',
+                                    featured: true
+                                },
+                                {
+                                    name:'Glagolitic',
+                                    value:'Glagolitic'
+                                },
+                                {
+                                    name:'Gothic',
+                                    value:'Gothic'
+                                },
+                                {
+                                    name:'Greek',
+                                    value:'Greek',
+                                    featured: true
+                                },
+                                {
+                                    name:'Gujarati',
+                                    value:'Gujarati',
+                                    featured: true
+                                },
+                                {
+                                    name:'Gurmukhi',
+                                    value:'Gurmukhi',
+                                    featured: true
+                                },
+                                {
+                                    name:'Hanunoo',
+                                    value:'Hanunoo'
+                                },
+                                {
+                                    name:'Hebrew',
+                                    value:'Hebrew',
+                                    featured: true
+                                },
+                                {
+                                    name:'Imperial Aramaic',
+                                    value:'ImperialAramaic'
+                                },
+                                {
+                                    name:'Inscriptional Pahlavi',
+                                    value:'InscriptionalPahlavi'
+                                },
+                                {
+                                    name:'Inscriptional Parthian',
+                                    value:'InscriptionalParthian'
+                                },
+                                {
+                                    name:'Javanese',
+                                    value:'Javanese',
+                                    featured: true
+                                },
+                                {
+                                    name:'Kaithi',
+                                    value:'Kaithi'
+                                },
+                                {
+                                    name:'Kannada',
+                                    value:'Kannada',
+                                    featured: true
+                                },
+                                {
+                                    name:'KayahLi',
+                                    value:'KayahLi'
+                                },
+                                {
+                                    name:'Khmer',
+                                    value:'Khmer',
+                                    featured: true
+                                },
+                                {
+                                    name:'Lao',
+                                    value:'Lao',
+                                    featured: true
+                                },
+                                {
+                                    name:'Latin',
+                                    value:'Latin',
+                                    featured: true
+                                },
+                                {
+                                    name:'Lepcha',
+                                    value:'Lepcha'
+                                },
+                                {
+                                    name:'Limbu',
+                                    value:'Limbu'
+                                },
+                                {
+                                    name:'Linear B',
+                                    value:'LinearB'
+                                },
+                                {
+                                    name:'Lisu',
+                                    value:'Lisu'
+                                },
+                                {
+                                    name:'Lycian',
+                                    value:'Lycian'
+                                },
+                                {
+                                    name:'Lydian',
+                                    value:'Lydian'
+                                },
+                                {
+                                    name:'Malayalam',
+                                    value:'Malayalam',
+                                    featured: true
+                                },
+                                {
+                                    name:'Mandaic',
+                                    value:'Mandaic'
+                                },
+                                {
+                                    name:'Meetei Mayek',
+                                    value:'MeeteiMayek'
+                                },
+                                {
+                                    name:'Mongolian',
+                                    value:'Mongolian',
+                                    featured: true
+                                },
+                                {
+                                    name:'Myanmar',
+                                    value:'Myanmar'
+                                },
+                                {
+                                    name:'New Tai Lue',
+                                    value:'NewTaiLue'
+                                },
+                                {
+                                    name:'NKo',
+                                    value:'NKo'
+                                },
+                                {
+                                    name:'Nushu',
+                                    value:'Nushu'
+                                },
+                                {
+                                    name:'Odia',
+                                    value:'Odia',
+                                    featured: true
+                                },
+                                {
+                                    name:'Ogham',
+                                    value:'Ogham'
+                                },
+                                {
+                                    name:'Ol Chiki',
+                                    value:'OlChiki'
+                                },
+                                {
+                                    name:'Old Italic',
+                                    value:'OldItalic'
+                                },
+                                {
+                                    name:'Old Persian',
+                                    value:'OldPersian'
+                                },
+                                {
+                                    name:'Old South Arabian',
+                                    value:'OldSouthArabian'
+                                },
+                                {
+                                    name:'Old Turkic',
+                                    value:'OldTurkic'
+                                },
+                                {
+                                    name:'Oriya',
+                                    value:'Oriya'
+                                },
+                                {
+                                    name:'Osage',
+                                    value:'Osage'
+                                },
+                                {
+                                    name:'Osmanya',
+                                    value:'Osmanya'
+                                },
+                                {
+                                    name:'Phags Pa',
+                                    value:'PhagsPa'
+                                },
+                                {
+                                    name:'Phoenician',
+                                    value:'Phoenician'
+                                },
+                                {
+                                    name:'Rejang',
+                                    value:'Rejang'
+                                },
+                                {
+                                    name:'Runic',
+                                    value:'Runic'
+                                },
+                                {
+                                    name:'Samaritan',
+                                    value:'Samaritan'
+                                },
+                                {
+                                    name:'Saurashtra',
+                                    value:'Saurashtra'
+                                },
+                                {
+                                    name:'Shavian',
+                                    value:'Shavian'
+                                },
+                                {
+                                    name:'Sinhala',
+                                    value:'Sinhala',
+                                    featured: true
+                                },
+                                {
+                                    name:'Sundanese',
+                                    value:'Sundanese',
+                                    featured: true
+                                },
+                                {
+                                    name:'Syloti Nagri',
+                                    value:'SylotiNagri'
+                                },
+                                {
+                                    name:'Syriac Eastern',
+                                    value:'SyriacEastern'
+                                },
+                                {
+                                    name:'Syriac Estrangela',
+                                    value:'SyriacEstrangela'
+                                },
+                                {
+                                    name:'Syriac Western',
+                                    value:'SyriacWestern'
+                                },
+                                {
+                                    name:'Tagalog',
+                                    value:'Tagalog'
+                                },
+                                {
+                                    name:'Tagbanwa',
+                                    value:'Tagbanwa'
+                                },
+                                {
+                                    name:'Tai Le',
+                                    value:'TaiLe'
+                                },
+                                {
+                                    name:'Tai Tham',
+                                    value:'TaiTham'
+                                },
+                                {
+                                    name:'Tai Viet',
+                                    value:'TaiViet'
+                                },
+                                {
+                                    name:'Tamil',
+                                    value:'Tamil',
+                                    featured: true
+                                },
+                                {
+                                    name:'Telugu',
+                                    value:'Telugu',
+                                    featured: true
+                                },
+                                {
+                                    name:'Thaana',
+                                    value:'Thaana',
+                                    featured: true
+                                },
+                                {
+                                    name:'Thai',
+                                    value:'Thai',
+                                    featured: true
+                                },
+                                {
+                                    name:'Tibetan',
+                                    value:'Tibetan',
+                                    featured: true
+                                },
+                                {
+                                    name:'Tifinagh',
+                                    value:'Tifinagh'
+                                },
+                                {
+                                    name:'Ugaritic',
+                                    value:'Ugaritic'
+                                },
+                                {
+                                    name:'Vai',
+                                    value:'Vai'
+                                },
+                                {
+                                    name:'Yi',
+                                    value:'Yi'
+                                }
+                            ],
+                            contrast: [
+                                {
+                                    name:'Sans',
+                                    value:'Sans'
+                                },
+                                {
+                                    name:'Serif',
+                                    value:'Serif'
+                                }
+                            ],
+                            styles: [
+                                {
+                                    name:'Italic',
+                                    value:'Italic',
+                                    disabled:true
+                                },
+                                {
+                                    name:'Mono',
+                                    value:'Mono',
+                                    disabled:true
+                                },
+                                {
+                                    name:'Display',
+                                    value:'Display',
+                                    disabled:true
+                                },
+                                {
+                                    name:'Kufi',
+                                    value:'Kufi',
+                                    disabled:true
+                                },
+                                {
+                                    name:'Nastaliq',
+                                    value:'Nastaliq',
+                                    disabled:true
+                                }
+                            ],
+                            weight: [
+                                {
+                                    name:'Thin',
+                                    value:'Thin'
+                                },
+                                {
+                                    name:'ExtraLight',
+                                    value:'ExtraLight'
+                                },
+                                {
+                                    name:'Light',
+                                    value:'Light'
+                                },
+                                {
+                                    name:'Regular',
+                                    value:'Regular'
+                                },
+                                {
+                                    name:'Medium',
+                                    value:'Medium'
+                                },
+                                {
+                                    name:'SemiBold',
+                                    value:'SemiBold'
+                                },
+                                {
+                                    name:'Bold',
+                                    value:'Bold'
+                                },
+                                {
+                                    name:'ExtraBold',
+                                    value:'ExtraBold'
+                                },
+                                {
+                                    name:'Black',
+                                    value:'Black'
+                                }
+                            ],
+                            width: [
+                                {
+                                    name:'ExtraCondensed',
+                                    value:'ExtraCondensed'
+                                },
+                                {
+                                    name:'SemiCondensed',
+                                    value:'SemiCondensed'
+                                },
+                                {
+                                    name:'Condensed',
+                                    value:'Condensed'
+                                },
+                                {
+                                    name:'Normal',
+                                    value:'Normal'
+                                }
+                            ],
+                            metrics: {
+                                ascender: {
+                                    name:'Ascender'
+                                },
+                                descender: {
+                                    name:'Descender'
+                                }
+                            },
+                            hinted: {
+                                name:'Hinted'
+                            },
+                            ui: {
+                                name:'UI'
+                            },
+                            subset: [
+                                {
+                                    name:'Latin',
+                                    value:'Latin',
+                                    subsets: [
+                                        {
+                                            name:'East European',
+                                            value:'EastEuropean',
+                                            disabled:true
+                                        },
+                                        {
+                                            name:'Vietnamese',
+                                            value:'Vietnamese',
+                                            disabled:true
+                                        },
+                                        {
+                                            name:'ASCII',
+                                            value:'ASCII',
+                                            disabled:true
+                                        },
+                                        {
+                                            name:'IPA',
+                                            value:'IPA',
+                                            disabled:true
+                                        },
+                                        {
+                                            name:'Full',
+                                            value:'Full',
+                                            disabled:true
+                                        }
+                                    ]
+                                },
+                                {
+                                    name:'Greek',
+                                    value:'Greek',
+                                    subsets: [
+                                        {
+                                            name:'Modern Greek',
+                                            value:'ModernGreek',
+                                            disabled:true
+                                        },
+                                        {
+                                            name:'Polytonic Greek',
+                                            value:'PolytonicGreek',
+                                            disabled:true
+                                        }
+                                    ]
+                                },
+                                {
+                                    name:'Cyrillic',
+                                    value:'Cyrillic',
+                                    subsets: [
+                                        {
+                                            name:'Core Cyrillic',
+                                            value:'CoreCyrillic',
+                                            disabled:true
+                                        },
+                                        {
+                                            name:'Extended Cyrillic',
+                                            value:'ExtendedCyrillic',
+                                            disabled:true
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        options: {
+                            name: '',
+                            output: [],
+                            contrast: '',
+                            styles: [],
+                            scripts: [],
+                            weight: [],
+                            width: [],
+                            metrics: {
+                                ascender: 0,
+                                descender: 0
+                            },
+                            hinted: false,
+                            ui: false,
+                            subset: [],
+                            subset_chars: ''
+                        },
+                        showAllScripts: false,
+                        command: '',
+                        commandOk: false,
+                        copyCommandDone: false,
+                        copyCommandDoneTimeout: 0
+                    }
+                },
+                filters: {
+                    slugify: function (value) {
+                        return utils.string.slugify(value);
+                    },
+                    upper: function (value) {
+                        return String(value).toUpperCase();
+                    }
+                },
+                methods: {
+                    toggleShowAllScripts: function function_name(argument) {
+                        this.showAllScripts = !this.showAllScripts;
+                    },
+                    isScriptSelected: function(name) {
+                        return utils.array.contains(
+                            this.options.scripts, name);
+                    },
+                    updateStylesOnScriptsChange: function() {
+                        var scope = this;
+                        var stylesDict = utils.array.index(this.choices.styles, 'name', true);
+                        var stylesUpdate = function(scriptName, styleNames) {
+                            if (scope.isScriptSelected(scriptName)) {
+                                styleNames.forEach(function(styleName) {
+                                    stylesDict[styleName].disabled = false;
+                                });
+                            }
+                        };
+                        // disable all style choices
+                        this.choices.styles.forEach(function(style) {
+                            style.disabled = true;
+                        });
+                        // enable only style choices of selected scripts
+                        stylesUpdate('Latin', ['Italic', 'Display', 'Mono']);
+                        stylesUpdate('Greek', ['Italic', 'Display', 'Mono']);
+                        stylesUpdate('Cyrillic', ['Italic', 'Display', 'Mono']);
+                        stylesUpdate('Tamil', ['Italic']);
+                        stylesUpdate('Arabic', ['Kufi', 'Nastaliq']);
+                        // remove disabled style choices from options
+                        this.choices.styles.forEach(function(style) {
+                            if (style.disabled === true) {
+                                utils.array.remove(scope.options.styles, style.value);
+                            }
+                        });
+                    },
+                    updateSubsetOnScriptsChange: function() {
+                        var scope = this;
+                        var subsetDict = utils.array.index(this.choices.subset, 'name', true);
+                        var subsetUpdate = function(scriptName) {
+                            var subsetScriptSelected = scope.isScriptSelected(scriptName);
+                            var subsetDisabled = Boolean(!subsetScriptSelected);
+                            subsetDict[scriptName].subsets.forEach(function(subset) {
+                                subset.disabled = subsetDisabled;
+                                if (subsetDisabled === true) {
+                                    utils.array.remove(scope.options.subset, subset.value);
+                                }
+                            });
+                        };
+                        subsetUpdate('Latin');
+                        subsetUpdate('Greek');
+                        subsetUpdate('Cyrillic');
+                    },
+                    onChangeScripts: function() {
+                        this.updateStylesOnScriptsChange();
+                        this.updateSubsetOnScriptsChange();
+                    },
+                    buildCommand: function() {
+                        command_options = []
+
+                        name = this.options.name;
+                        if (name !== '') {
+                            name = utils.string.replace(name, ' ', '-');
+                            command_options.push('--name "' + name + '"');
+                        }
+
+                        output = this.options.output;
+                        if (output.length > 0) {
+                            command_options.push('--output ' + output.join(' '));
+                        }
+
+                        scripts = this.options.scripts;
+                        if (scripts.length > 0) {
+                            command_options.push('--scripts ' + scripts.join(' '));
+                        }
+
+                        constrast = this.options.contrast;
+                        if (constrast !== '') {
+                            command_options.push('--contrast ' + constrast);
+                        }
+
+                        styles = this.options.styles;
+                        if (styles.length > 0) {
+                            command_options.push('--styles ' + styles.join(' '));
+                        }
+
+                        weight = this.options.weight;
+                        if (weight.length > 0) {
+                            command_options.push('--weight ' + weight.join(' '));
+                        }
+
+                        width = this.options.width;
+                        if (width.length > 0) {
+                            command_options.push('--width ' + width.join(' '));
+                        }
+
+                        metrics_ascender = Number(this.options.metrics.ascender);
+                        metrics_descender = Number(this.options.metrics.descender);
+                        metrics = [metrics_ascender, metrics_descender];
+                        if (!isNaN(metrics_ascender) && !isNaN(metrics_descender)) {
+                            if (metrics_ascender || metrics_descender) {
+                                command_options.push('--metrics "' + metrics.join(' ') + '"');
+                            }
+                        }
+
+                        hinted = this.options.hinted;
+                        if (hinted === true) {
+                            command_options.push('--hinted');
+                        }
+
+                        ui = this.options.ui;
+                        if (ui === true) {
+                            command_options.push('--ui');
+                        }
+
+                        subset = this.options.subset;
+                        if (subset.length > 0) {
+                            command_options.push('--subset ' + subset.join(' '));
+                        }
+
+                        subset_chars = this.options.subset_chars;
+                        if (subset_chars.length > 0) {
+                            subset_chars_list = subset_chars.split('');
+                            subset_chars_list = utils.array.unique(subset_chars_list);
+                            subset_chars_list = utils.array.remove(subset_chars_list, ' ')
+                            if (subset_chars_list.length > 0) {
+                                command_options.push('--subs "' + subset_chars_list.join('')+ '"');
+                            }
+                        }
+
+                        return 'python ~/notobuilderCLI.py ' + command_options.join(' ');
+                    },
+                    copyCommand: function() {
+                        var scope = this;
+                        var onCopySuccess = function() {
+                            // alert('Copied! :)');
+                            clearTimeout(scope.copyCommandDoneTimeout);
+                            scope.copyCommandDone = true;
+                            scope.copyCommandDoneTimeout = setTimeout(function() {
+                                scope.copyCommandDone = false;
+                            }, 1500);
+                        };
+                        var onCopyError = function() {
+                            // alert('Copying error... :(');
+                        };
+                        Clipboard.copy(this.command, onCopySuccess, onCopyError);
+                    }
+                },
+                mounted: function() {
+                    this.ready = true;
+                },
+                updated: function() {
+                    this.command = this.buildCommand();
+                    this.commandOk = (this.options.contrast != '' && this.options.scripts.length > 0);
+                }
+            });
+        </script>
+    </body>
+</html>
