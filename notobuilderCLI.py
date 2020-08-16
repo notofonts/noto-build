@@ -66,12 +66,12 @@ class Download:
             dest = os.path.join(os.path.dirname(dest), i, "instance_ttf")
             if not os.path.exists(dest):
                 os.makedirs(dest)
-            total_files = 0
+            # total_files = 0
             response = urllib.request.urlretrieve(api_url)
             with open(response[0], "r") as f:
                 data_brutes = f.read()
                 data = json.loads(data_brutes)
-                total_files += len(data)
+                # total_files += len(data)
                 for index, file in enumerate(data):
                     file_url = file["download_url"]
                     file_name = file["name"]
@@ -307,7 +307,7 @@ class Notobuilder:
     def lgcSub(self):
         self.panEuropeanSub = []
         lgcSub = [s for s in self.writingSystems if s in ["Latin", "Greek", "Cyrillic"]]
-        if 0 < len(lgcSub) < 3 and self.subsets != "Full":
+        if 0 < len(lgcSub) < 3 and "Full" not in self.subsets:
             # add folder
             europeanSubsetFolder = os.path.join(self.scriptsFolder, "EuropeanSubset")
             if not os.path.exists(europeanSubsetFolder):
@@ -351,6 +351,8 @@ class Notobuilder:
                 name = name + "UI"
             if name not in self.repoNames:
                 self.repoNames.append(name)
+        if "Tamil" in self.writingSystems:
+            self.repoNames.append("NotoSansTamilSupplement")
         print(self.repoNames)
 
         Download(self.repoNames, self.scriptsFolder, self.hinted)
@@ -579,8 +581,6 @@ class Notobuilder:
             )
         for suppr in self.subsettedFonts2remove:
             os.remove(suppr)
-        for r in self.repoNames:
-            shutil.rmtree(os.path.join(self.scriptsFolder, r))
         print("    INFO: ends merging\n")
         if self.subs != "":
             customDir = os.path.join(self.scriptsFolder, "Custom_Fonts")
@@ -798,6 +798,10 @@ class Notobuilder:
 
             return renamedFont
 
+    def cleanFolder(self):
+        for r in self.repoNames:
+            shutil.rmtree(os.path.join(self.scriptsFolder, r))
+
 
 def main():
     parser = ArgumentParser()
@@ -871,6 +875,8 @@ def main():
         compatibility,
         subs
         )
+
+    build.cleanFolder()
 
 
 if __name__ == "__main__":
