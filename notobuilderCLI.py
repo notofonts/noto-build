@@ -44,7 +44,6 @@ class Download:
         self.repoNames = repo_names
         self.scriptsFolder = scriptsFolder
         self.hinted = hinted
-        # self.dwnldSources()
 
     def dwnldFonts(self):
         print("INFO: Download begin")
@@ -384,8 +383,16 @@ class Notobuilder:
             self.repoNames.append("NotoSansTamilSupplement")
         print(self.repoNames)
 
-        dl = Download(self.repoNames, self.scriptsFolder, self.hinted)
-        dl.dwnldFonts()
+        toDownload = []
+        for n in self.repoNames:
+            chemin = os.path.join(self.scriptsFolder, n, self.path)
+            if Path(chemin).exists():
+                pass
+            else:
+                toDownload.append(n)
+        if len(toDownload) > 0:
+            dl = Download(toDownload, self.scriptsFolder, self.hinted)
+            dl.dwnldFonts()
 
         self.buildWghtWdthstyleName()
 
@@ -988,6 +995,7 @@ def main():
     parser.add_argument("--metrics", nargs=2)
     parser.add_argument("--subs", nargs=1)
     parser.add_argument("--compatibility", action="store_true")
+    parser.add_argument("--keep", action="store_true")
     args = parser.parse_args()
 
     newName = "Personal Noto"
@@ -1002,6 +1010,7 @@ def main():
     ui = False
     metrics = []
     compatibility = False
+    keep = False
 
     if "--output" in sys.argv:
         output = args.output
@@ -1023,6 +1032,8 @@ def main():
         ui = True
     if args.compatibility:
         compatibility = True
+    if args.keep:
+        keep = True
     if "--metrics" in sys.argv:
         metrics = args.metrics
     if "--subs" in sys.argv:
@@ -1044,8 +1055,8 @@ def main():
         compatibility,
         subs,
     )
-
-    build.cleanFolder()
+    if keep is False:
+        build.cleanFolder()
 
 
 if __name__ == "__main__":
