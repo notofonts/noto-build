@@ -35,7 +35,7 @@ Run it in a Terminal, using some of the following arguments:
 * --contrast
   * Serif or Sans, the script can manage families with no prefix
 * --styles
-  * Italic, Display, Kufi, Nastaliq
+  * Italic, Display, Mono, Kufi, Nastaliq
   * Optional
 * --weight
   * The weight(s) you want
@@ -46,6 +46,19 @@ Run it in a Terminal, using some of the following arguments:
 * --hinted
   * Downloads hinted fonts
   * Defaults to False
+* --subs
+  * Pass a list of characters to subset the final fonts.
+  * Optional
+* --metrics
+  * Give two values to change the vertical metrics (the second should be negative).
+  * Optional
+* --compatibility
+  * Merge only the common weight/width
+  * False by default
+* --keep
+  * Don't delete downloaded font folder after merging is complete
+  * False by default
+
 
 Examples:
 
