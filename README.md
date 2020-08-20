@@ -55,9 +55,6 @@ Run it in a Terminal, using some of the following arguments:
 * --compatibility
   * Merge only the common weight/width
   * False by default
-* --keep
-  * Don't delete downloaded font folder after merging is complete
-  * False by default
 
 
 Examples:

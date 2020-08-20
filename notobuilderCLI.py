@@ -42,11 +42,46 @@ from fontTools.ttLib.tables._c_m_a_p import CmapSubtable
 class Download:
     def __init__(self, repo_names, scriptsFolder, hinted=False):
         self.repoNames = repo_names
-        self.scriptsFolder = scriptsFolder
+        self.notoFontsFolder = os.path.join(scriptsFolder, "NotoFonts")
+        if not os.path.exists(self.notoFontsFolder):
+                os.makedirs(self.notoFontsFolder)
         self.hinted = hinted
+        self.editedRepoNames = copy.deepcopy(repo_names)
+
+    def oldSha(self, repoName):
+        oldShaPath = os.path.join(self.notoFontsFolder, repoName, "sha.md")
+        with open(oldShaPath, "r") as text:
+            _oldSha = text.read()
+        return _oldSha
+
+    def getSha(self, repoName):
+        if self.hinted is False:
+            folder_url = (
+                "https://api.github.com/repos/notofonts/"
+                + repoName
+                + "/tree/master/fonts/ttf/unhinted"
+            )
+        else:
+            folder_url = (
+                "https://api.github.com/repos/notofonts/"
+                + repoName
+                + "/tree/master/fonts/ttf/hinted"
+            )
+        api_url, _ = self.createUrl(folder_url)
+        response = urllib.request.urlretrieve(api_url)
+        with open(response[0], "r") as f:
+            data_brutes = f.read()
+            data = json.loads(data_brutes)
+            for index, f in enumerate(data):
+                if f["name"] == "instance_ttf":
+                    self.sha = f["sha"]
+
+    def writeSha(self, repoName):
+        shaTxt = os.path.join(self.notoFontsFolder, repoName, "sha.md")
+        with open(shaTxt, "w") as text:
+            text.write(self.sha)
 
     def dwnldFonts(self):
-        print("INFO: Download begin")
         for i in self.repoNames:
             if self.hinted is False:
                 url = (
@@ -60,53 +95,46 @@ class Download:
                     + i
                     + "/tree/master/fonts/ttf/hinted/instance_ttf"
                 )
-            api_url, dl_folder = self.createUrl(url)
-            # print(api_url, dl_folder)
-            dest = self.getFilepathFromUrl(url, self.scriptsFolder)
-            dest = os.path.join(os.path.dirname(dest), i, "instance_ttf")
-            if not os.path.exists(dest):
-                os.makedirs(dest)
-            # total_files = 0
-            response = urllib.request.urlretrieve(api_url)
-            with open(response[0], "r") as f:
-                data_brutes = f.read()
-                data = json.loads(data_brutes)
-                # total_files += len(data)
-                for index, file in enumerate(data):
-                    file_url = file["download_url"]
-                    file_name = file["name"]
-                    temp_path = os.path.join(dest, file_url.split("/")[-1]).replace(
-                        "%20", " "
-                    )
-                    if file_url is not None:
-                        with requests.get(file_url) as response:
-                            binary = response.content
-                            self.writeBin(temp_path, binary)
-
-    def aspire(self):
-        print("INFO: Download begin")
-        for i in self.repoNames:
-            url = "https://api.github.com/repos/notofonts/" + i + "/tree/master/sources"
-            api_url, dl_folder = self.createUrl(url)
-            dest = self.getFilepathFromUrl(url, self.scriptsFolder)
-            dest = os.path.join(os.path.dirname(dest), i, "sources")
-            if not os.path.exists(dest):
-                os.makedirs(dest)
-            response = urllib.request.urlretrieve(api_url)
-            with open(response[0], "r") as f:
-                data_brutes = f.read()
-                data = json.loads(data_brutes)
-                # total_files += len(data)
-                for index, file in enumerate(data):
-                    file_url = file["download_url"]
-                    file_name = file["name"]
-                    temp_path = os.path.join(dest, file_url.split("/")[-1]).replace(
-                        "%20", " "
-                    )
-                    if file_url is not None:
-                        with requests.get(file_url) as response:
-                            binary = response.content
-                            self.writeBin(temp_path, binary)
+            try:
+                api_url, dl_folder = self.createUrl(url)
+            except:
+                try:
+                    firstTry = i
+                    i = i.replace("Serif", "Sans")
+                    url = url.replace("Serif", "Sans")
+                    api_url, dl_folder = self.createUrl(url)
+                    self.editedRepoNames.replace(firstTry, i)
+                except:
+                    print(i.replace("Sans", "serif"), "does not exist. Removed from writing system list")
+                    self.editedRepoNames.remove(i.replace("Sans", "Serif"))
+                    continue
+            # CHECK SHA
+            if os.path.exists(os.path.join(self.notoFontsFolder, i)):
+                if self.oldSha(i) == self.getSha(i):
+                    continue
+            else:
+                # print(api_url)
+                print("INFO: "+i+" download begin")
+                dest = self.getFilepathFromUrl(url, self.notoFontsFolder)
+                dest = os.path.join(os.path.dirname(dest), i, "instance_ttf")
+                if not os.path.exists(dest):
+                    os.makedirs(dest)
+                response = urllib.request.urlretrieve(api_url)
+                with open(response[0], "r") as f:
+                    data_brutes = f.read()
+                    data = json.loads(data_brutes)
+                    for index, file in enumerate(data):
+                        file_url = file["download_url"]
+                        file_name = file["name"]
+                        temp_path = os.path.join(dest, file_url.split("/")[-1]).replace(
+                            "%20", " "
+                        )
+                        if file_url is not None:
+                            with requests.get(file_url) as response:
+                                binary = response.content
+                                self.writeBin(temp_path, binary)
+                self.getSha(i)
+                self.writeSha(i)
 
     def writeBin(self, path, binary):
         with open(path, "wb") as f:
@@ -133,6 +161,9 @@ class Download:
         basepath = os.path.split(abs_filepath)[-1].split("-")[0]
 
         return os.path.join(dirpath, basepath)
+
+    def getEditedRepoNames(self):
+        return self.editedRepoNames
 
 
 class GlyphsToRemove:
@@ -185,6 +216,7 @@ class Notobuilder:
         subs,
     ):
         self.scriptsFolder = os.path.split(sys.argv[0])[0]
+        self.notoFontsFolder = os.path.join(self.scriptsFolder, "NotoFonts")
         self.writingSystems = writingsystems
         self.newName = str(" ".join(newName))
         self.output = "." + output[0]  # OTF and VF merging not available at this point
@@ -254,7 +286,9 @@ class Notobuilder:
             "NotoSerifKufi": "NotoKufiArabic",
         }
 
-        self.sansOnly = ["CanadianAboriginal", "Kufi", "Music"]
+        self.sansOnly = ["CanadianAboriginal", "Kufi", "Music",
+                        "InscriptionalPahlavi", "PsalterPahlavi"
+        ]
 
         self.fonts_with_ui_version = [
             "NotoSansKannada",
@@ -331,7 +365,7 @@ class Notobuilder:
         lgcSub = [s for s in self.writingSystems if s in ["Latin", "Greek", "Cyrillic"]]
         if 0 < len(lgcSub) < 3 and "Full" not in self.subsets:
             # add folder
-            europeanSubsetFolder = os.path.join(self.scriptsFolder, "EuropeanSubset")
+            europeanSubsetFolder = os.path.join(self.notoFontsFolder, "EuropeanSubset")
             if not os.path.exists(europeanSubsetFolder):
                 os.makedirs(europeanSubsetFolder)
             # make the list of glyphs to keep
@@ -379,20 +413,14 @@ class Notobuilder:
                 name = name + "UI"
             if name not in self.repoNames:
                 self.repoNames.append(name)
-        if "Tamil" in self.writingSystems:
+        if "TamilSupplement" in self.subsets:
             self.repoNames.append("NotoSansTamilSupplement")
-        print(self.repoNames)
 
-        toDownload = []
-        for n in self.repoNames:
-            chemin = os.path.join(self.scriptsFolder, n, self.path)
-            if Path(chemin).exists():
-                pass
-            else:
-                toDownload.append(n)
-        if len(toDownload) > 0:
-            dl = Download(toDownload, self.scriptsFolder, self.hinted)
-            dl.dwnldFonts()
+        print("asked", self.repoNames)
+        dl = Download(self.repoNames, self.scriptsFolder, self.hinted)
+        dl.dwnldFonts()
+        self.repoNames = dl.getEditedRepoNames()
+        print("returned", self.repoNames)
 
         self.buildWghtWdthstyleName()
 
@@ -401,7 +429,7 @@ class Notobuilder:
             common = set()
             family2weightwidth = dict()
             for family in self.repoNames:
-                repoPath = os.path.join(self.scriptsFolder, family, self.path)
+                repoPath = os.path.join(self.notoFontsFolder, family, self.path)
                 weightwidth = list()
                 for ft in os.listdir(repoPath):
                     weightwidth.append(ft.split("-")[1].replace(".ttf", ""))
@@ -435,7 +463,7 @@ class Notobuilder:
                     ftname = ftname.replace(
                         old, new.replace("Regular", "")
                     )  # remove Reg in the Italic case)
-                ftpath = os.path.join(self.scriptsFolder, n, self.path, ftname)
+                ftpath = os.path.join(self.notoFontsFolder, n, self.path, ftname)
                 if Path(ftpath).exists():
                     print("  ✓", os.path.basename(ftpath))
                     self.fonts2merge_list.append(ftpath)
@@ -967,10 +995,6 @@ class Notobuilder:
 
             return renamedFont
 
-    def cleanFolder(self):
-        for r in self.repoNames:
-            shutil.rmtree(os.path.join(self.scriptsFolder, r))
-
 
 def main():
     parser = ArgumentParser()
@@ -995,10 +1019,9 @@ def main():
     parser.add_argument("--metrics", nargs=2)
     parser.add_argument("--subs", nargs=1)
     parser.add_argument("--compatibility", action="store_true")
-    parser.add_argument("--keep", action="store_true")
     args = parser.parse_args()
 
-    newName = "Personal Noto"
+    newName = "My Noto"
     subs = ""
     subsets = list()
     swapedstyles = list()
@@ -1010,7 +1033,6 @@ def main():
     ui = False
     metrics = []
     compatibility = False
-    keep = False
 
     if "--output" in sys.argv:
         output = args.output
@@ -1032,8 +1054,6 @@ def main():
         ui = True
     if args.compatibility:
         compatibility = True
-    if args.keep:
-        keep = True
     if "--metrics" in sys.argv:
         metrics = args.metrics
     if "--subs" in sys.argv:
@@ -1055,8 +1075,6 @@ def main():
         compatibility,
         subs,
     )
-    if keep is False:
-        build.cleanFolder()
 
 
 if __name__ == "__main__":
