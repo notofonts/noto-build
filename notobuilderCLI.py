@@ -75,6 +75,7 @@ class Download:
             for index, f in enumerate(data):
                 if f["name"] == "instance_ttf":
                     self.sha = f["sha"]
+        return self.sha
 
     def writeSha(self, repoName):
         shaTxt = os.path.join(self.notoFontsFolder, repoName, "sha.md")
@@ -99,21 +100,26 @@ class Download:
                 api_url, dl_folder = self.createUrl(url)
             except:
                 try:
-                    firstTry = i
+                    askedByUser = i
                     i = i.replace("Serif", "Sans")
                     url = url.replace("Serif", "Sans")
                     api_url, dl_folder = self.createUrl(url)
-                    self.editedRepoNames.replace(firstTry, i)
+                    self.editedRepoNames.replace(askedByUser, i)
                 except:
                     print(i.replace("Sans", "serif"), "does not exist. Removed from writing system list")
                     self.editedRepoNames.remove(i.replace("Sans", "Serif"))
                     continue
             # CHECK SHA
+            dlBool = True
             if os.path.exists(os.path.join(self.notoFontsFolder, i)):
+                print(">>> ", self.oldSha(i), self.getSha(i))
                 if self.oldSha(i) == self.getSha(i):
-                    continue
-            else:
-                # print(api_url)
+                    dlBool = False
+                    # continue
+                else:
+                    print("else")
+                    dlBool = True
+            if dlBool is True:
                 print("INFO: "+i+" download begin")
                 dest = self.getFilepathFromUrl(url, self.notoFontsFolder)
                 dest = os.path.join(os.path.dirname(dest), i, "instance_ttf")
@@ -284,6 +290,7 @@ class Notobuilder:
             "NotoSansTraditionalNushu": "NotoTraditionalNushu",
             "NotoSerifTamilSupplement": "NotoSansTamilSupplement",
             "NotoSerifKufi": "NotoKufiArabic",
+            "NotoSansAhom": "NotoSerifAhom",
         }
 
         self.sansOnly = ["CanadianAboriginal", "Kufi", "Music",
