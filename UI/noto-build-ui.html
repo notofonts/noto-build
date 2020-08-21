@@ -985,12 +985,10 @@
                             subsetDict[scriptName].subsets.forEach(function(subset) {
                                 subset.disabled = subsetDisabled;
                                 if (subsetDisabled === true) {
-                                    // utils.array.remove(scope.options.subset, subset.value);
                                     scope.options.subset[scriptName] = '';
                                 } else {
                                     // automatically check default subset(s)
                                     if (subset.default === true) {// && !(scriptName in scope.options.subset)) {
-                                        // scope.options.subset.push(subset.value);
                                         scope.options.subset[scriptName] = subset.value;
                                     }
                                 }
@@ -999,8 +997,8 @@
                         subsetUpdate('Latin');
                         subsetUpdate('Greek');
                         subsetUpdate('Cyrillic');
-                        subsetUpdate('Tamil');
                         subsetUpdate('Arabic');
+                        subsetUpdate('Tamil');
                     },
                     updateArabicStylesOnStylesChange: function() {
                         var stylesSelected = this.options.styles;
@@ -1044,69 +1042,69 @@
                     buildCommand: function() {
                         command_options = []
 
-                        let name = this.options.name;
+                        var name = this.options.name;
                         if (name !== '') {
                             name = utils.string.replace(name, ' ', '-');
                             command_options.push('--name "' + name + '"');
                         }
 
-                        let output = this.options.output;
+                        var output = this.options.output;
                         if (output.length > 0) {
                             command_options.push('--output ' + output.join(' '));
                         }
 
-                        let scripts = this.options.scripts;
+                        var scripts = this.options.scripts;
                         if (scripts.length > 0) {
                             command_options.push('--scripts ' + scripts.join(' '));
                         }
 
-                        let constrast = this.options.contrast;
+                        var constrast = this.options.contrast;
                         if (constrast !== '') {
                             command_options.push('--contrast ' + constrast);
                         }
 
-                        let styles = this.options.styles;
+                        var styles = this.options.styles;
                         if (styles.length > 0) {
                             command_options.push('--styles ' + styles.join(' '));
                         }
 
-                        let weight = this.options.weight;
+                        var weight = this.options.weight;
                         if (weight.length > 0) {
                             command_options.push('--weight ' + weight.join(' '));
                         }
 
-                        let width = this.options.width;
+                        var width = this.options.width;
                         if (width.length > 0) {
                             command_options.push('--width ' + width.join(' '));
                         }
 
-                        let metrics_ascender = Number(this.options.metrics.ascender);
-                        let metrics_descender = Number(this.options.metrics.descender);
-                        let metrics = [metrics_ascender, metrics_descender];
+                        var metrics_ascender = Number(this.options.metrics.ascender);
+                        var metrics_descender = Number(this.options.metrics.descender);
+                        var metrics = [metrics_ascender, metrics_descender];
                         if (!isNaN(metrics_ascender) && !isNaN(metrics_descender)) {
                             if (metrics_ascender || metrics_descender) {
                                 command_options.push('--metrics "' + metrics.join(' ') + '"');
                             }
                         }
 
-                        let hinted = this.options.hinted;
+                        var hinted = this.options.hinted;
                         if (hinted === true) {
                             command_options.push('--hinted');
                         }
 
-                        let ui = this.options.ui;
+                        var ui = this.options.ui;
                         if (ui === true) {
                             command_options.push('--ui');
                         }
 
-                        let subset = this.options.subset;
-                        let subsetValues = utils.array.clean(utils.object.values(subset));
+                        var subset = this.options.subset;
+                        var subsetValues = utils.array.clean(utils.object.values(subset), true);
                         if (subsetValues.length > 0) {
                             subsetValues.sort();
                             command_options.push('--preset ' + subsetValues.join(' '));
                         }
 
-                        let subset_chars = this.options.subset_chars;
+                        var subset_chars = this.options.subset_chars;
                         if (subset_chars.length > 0) {
                             subset_chars_list = subset_chars.split('');
                             subset_chars_list = utils.array.unique(subset_chars_list);
