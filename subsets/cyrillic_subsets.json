@@ -1,5 +1,5 @@
 {
-    "Cyrillic" : [
+    "BasicCyrillic" : [
     "afii10017",
     "afii10018",
     "afii10019",
@@ -446,7 +446,7 @@
     "greaterequal",
     "fraction"
 ],
-"CyrillicPro" : [
+"ExtendedCyrillic" : [
     "afii10017",
     "afii10018",
     "afii10019",

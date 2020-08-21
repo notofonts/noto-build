@@ -1,4 +1,4 @@
-{ "GreekModern":[
+{ "BasicGreek":[
     "Alpha",
     "Beta",
     "Gamma",
@@ -8,6 +8,7 @@
     "Eta",
     "Theta",
     "Iota",
+    "Iota.salt",
     "Kappa",
     "Lambda",
     "Mu",
@@ -57,7 +58,9 @@
     "Epsilontonos",
     "Etatonos",
     "Iotatonos",
+    "Iotatonos.salt",
     "Iotadieresis",
+    "Iotadieresis.salt",
     "Omicrontonos",
     "Upsilondieresis",
     "Upsilontonos",
@@ -302,7 +305,7 @@
     "greaterequal",
     "fraction"
 ],
-"Greek":[
+"GreekExtended":[
     "Alpha",
     "Beta",
     "Gamma",
@@ -312,6 +315,7 @@
     "Eta",
     "Theta",
     "Iota",
+    "Iota.salt",
     "Kappa",
     "Lambda",
     "Mu",
@@ -361,7 +365,9 @@
     "Epsilontonos",
     "Etatonos",
     "Iotatonos",
+    "Iotatonos.salt",
     "Iotadieresis",
+    "Iotadieresis.salt",
     "Omicrontonos",
     "Upsilondieresis",
     "Upsilontonos",

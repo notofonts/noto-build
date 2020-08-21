@@ -46,10 +46,10 @@
             </div>
             <div class="row">
                 <div class="col-12 text-nowrap mt-4">
-                    <label class="control-name h5 d-block mb-3">Name</label>
+                    <label class="control-name h5 d-block mb-3">Font Name</label>
                     <div class="row">
                         <div class="col-12 col-md-6 mb-2">
-                            <input class="form-control form-control-sm" v-model="options.name" type="text" placeholder="">
+                            <input class="form-control form-control-sm" v-model="options.name" type="text" placeholder="My Noto">
                         </div>
                     </div>
                     <hr>
@@ -57,7 +57,7 @@
             </div>
             <div class="row">
                 <div class="col-12">
-                    <label class="control-name h5 d-block mb-3">Output</label>
+                    <label class="control-name h5 d-block mb-3">Output Flavour</label>
                     <div class="row">
                         <div class="col-6 col-sm-2" v-for="item in choices.output">
                             <div class="custom-control form-control-sm custom-checkbox" v-bind:class="{ 'disabled': item.disabled }">
@@ -71,9 +71,16 @@
             </div>
             <div class="row">
                 <div class="col-12">
-                    <label class="control-name h5 d-block mb-3">Writing Systems<sup>*</sup></label>
                     <div class="row">
-                        <div class="col-6 col-sm-4 col-md-3" v-for="item in choices.scripts" v-if="item.featured || showAllScripts">
+                        <div class="col-12 col-md-6">
+                            <label class="control-name h5 d-block mb-3">Writing Systems Coverage<sup>*</sup></label>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <input class="form-control form-control-sm mb-3 mb-md-3" v-model="options.scripts_filter" type="text" placeholder="Filter..." v-on:input="onChangeScriptsFilter">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3" v-for="item in choices.scripts" v-if="(!item.hidden) && ((item.featured || showAllScripts) || (!item.featured && !showAllScripts && options.scripts_filter && options.scripts_filter !== ''))">
                             <div class="custom-control form-control-sm custom-checkbox" v-bind:class="{ 'control-featured':item.featured }">
                                 <input type="checkbox" v-model="options.scripts" v-bind:id="'scripts-' + item.value|slugify" v-bind:value="item.value" v-on:change="onChangeScripts" class="custom-control-input" required>
                                 <label class="custom-control-label" v-bind:for="'scripts-' + item.value|slugify">
@@ -84,7 +91,7 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-12 mt-3 text-center">
+                        <div class="col-12 mt-3 text-center" v-if="!(options.scripts_filter && options.scripts_filter !== '')">
                             <button type="button" class="btn btn-sm text-secondary btn-link border-0" @click="toggleShowAllScripts">
                                 <small>
                                     <template v-if="showAllScripts">Show less&hellip;</template>
@@ -98,7 +105,7 @@
             </div>
             <div class="row">
                 <div class="col-12">
-                    <label class="control-name h5 d-block mb-3">Contrast<sup>*</sup></label>
+                    <label class="control-name h5 d-block mb-3">Type of Contrast<sup>*</sup></label>
                     <div class="row">
                         <div class="col-6 col-sm-2" v-for="item in choices.contrast">
                             <div class="custom-control form-control-sm custom-radio">
@@ -112,11 +119,11 @@
             </div>
             <div class="row">
                 <div class="col-12">
-                    <label class="control-name h5 d-block mb-3">Styles</label>
+                    <label class="control-name h5 d-block mb-3">Style</label>
                     <div class="row">
                         <div class="col-6 col-sm-2" v-for="item in choices.styles">
                             <div class="custom-control form-control-sm custom-checkbox" v-bind:class="{ 'disabled': item.disabled }">
-                                <input type="checkbox" v-model="options.styles" v-bind:id="'styles-' + item.value|slugify" v-bind:value="item.value" v-bind:disabled="item.disabled" class="custom-control-input">
+                                <input type="checkbox" v-model="options.styles" v-bind:id="'styles-' + item.value|slugify" v-bind:value="item.value" v-bind:disabled="item.disabled" v-on:change="onChangeStyles" class="custom-control-input">
                                 <label class="custom-control-label" v-bind:for="'styles-' + item.value|slugify">{{ item.name }}</label>
                             </div>
                         </div>
@@ -156,12 +163,17 @@
                 <div class="col-12">
                     <label class="control-name h5 d-block mb-3">Metrics</label>
                     <div class="row">
-                        <div class="col-6 col-sm-4 col-md-3 mb-2" v-for="(item, key) in choices.metrics">
-                            <div class="input-group input-group-sm">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text bg-white border-0 pl-0 pr-3">{{ item.name }}</span>
+                        <div class="col-12 col-sm-6 mb-2" v-for="(item, key) in choices.metrics">
+                            <div class="row align-items-center no-gutters">
+                                <div class="col-3">
+                                    <label class="mb-0" v-bind:for="'metrics-' + item.name|slugify">{{ item.name }}</label>
                                 </div>
-                                <input type="number" class="form-control text-center rounded" placeholder="0" v-model="options.metrics[key]">
+                                <div class="col-6 pl-3 pr-3">
+                                    <input type="range" class="form-control form-control-sm" v-bind:min="item.min" v-bind:max="item.max" step="10" v-model="options.metrics[key]">
+                                </div>
+                                <div class="col-3">
+                                    <input type="number" class="form-control form-control-sm text-center rounded" placeholder="0" v-bind:id="'metrics-' + item.name|slugify" v-model="options.metrics[key]">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -170,12 +182,16 @@
             </div>
             <div class="row">
                 <div class="col-12">
-                    <label class="control-name h5 d-block mb-3">Hinted</label>
+                    <label class="control-name h5 d-block mb-3">Hinting</label>
                     <div class="row">
                         <div class="col-6 col-sm-4 col-md-3">
-                            <div class="custom-control form-control-sm custom-checkbox">
-                                <input type="checkbox" id="hinted" class="custom-control-input" v-model="options.hinted">
-                                <label class="custom-control-label" for="hinted">{{ choices.hinted.name }}</label>
+                            <div class="custom-control form-control-sm custom-radio">
+                                <input type="radio" id="hinted-no" class="custom-control-input" v-model="options.hinted" v-bind:value="false">
+                                <label class="custom-control-label" for="hinted-no">No</label>
+                            </div>
+                            <div class="custom-control form-control-sm custom-radio">
+                                <input type="radio" id="hinted-yes" class="custom-control-input" v-model="options.hinted" v-bind:value="true">
+                                <label class="custom-control-label" for="hinted-yes">Yes</label>
                             </div>
                         </div>
                     </div>
@@ -184,12 +200,16 @@
             </div>
             <div class="row">
                 <div class="col-12">
-                    <label class="control-name h5 d-block mb-3">UI</label>
+                    <label class="control-name h5 d-block mb-3">UI Version</label>
                     <div class="row">
                         <div class="col-6 col-sm-4 col-md-3">
-                            <div class="custom-control form-control-sm custom-checkbox">
-                                <input type="checkbox" id="ui" class="custom-control-input" v-model="options.ui">
-                                <label class="custom-control-label" for="ui">{{ choices.ui.name }}</label>
+                            <div class="custom-control form-control-sm custom-radio">
+                                <input type="radio" id="ui-no" class="custom-control-input" v-model="options.ui" v-bind:value="false">
+                                <label class="custom-control-label" for="ui-no">No</label>
+                            </div>
+                            <div class="custom-control form-control-sm custom-radio">
+                                <input type="radio" id="ui-yes" class="custom-control-input" v-model="options.ui" v-bind:value="true">
+                                <label class="custom-control-label" for="ui-yes">Yes</label>
                             </div>
                         </div>
                     </div>
@@ -198,19 +218,19 @@
             </div>
             <div class="row">
                 <div class="col-12 mb-4">
-                    <label class="control-name h5 d-block mb-3">Subsetting</label>
+                    <label class="control-name h5 d-block mb-3">Coverage Presets</label>
                     <div class="row">
-                        <div class="col-6 col-sm-4 col-md-3 mt-2 mb-4" v-for="group in choices.subset">
+                        <div class="col-6 col-sm-4 col-md-4 mt-2 mb-4" v-for="group in choices.subset">
                             <label class="control-name d-block h6">{{ group.name }}</label>
-                            <div class="custom-control form-control-sm custom-checkbox" v-for="item in group.subsets" v-bind:class="{ 'disabled': item.disabled }">
-                                <input type="checkbox" v-model="options.subset" v-bind:id="'subset-' + item.name|slugify" v-bind:value="item.value" v-bind:disabled="item.disabled" class="custom-control-input">
-                                <label class="custom-control-label" v-bind:for="'subset-' + item.name|slugify">{{ item.name }}</label>
+                            <div class="custom-control form-control-sm custom-radio" v-for="item in group.subsets" v-bind:class="{ 'disabled': item.disabled }">
+                                <input class="custom-control-input" type="radio" v-bind:id="'subset-' + (group.name + '-' + item.name)|slugify" v-model="options.subset[group.name]" v-bind:value="item.value" v-bind:disabled="item.disabled">
+                                <label class="custom-control-label" v-bind:for="'subset-' + (group.name + '-' + item.name)|slugify">{{ item.name }}</label>
                             </div>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-12 mb-3">
-                            <label class="control-name d-block h6">Custom characters</label>
+                            <label class="control-name d-block h6">Character Subset to Keep</label>
                             <textarea class="form-control form-control-sm" rows="3" v-model="options.subset_chars"></textarea>
                         </div>
                     </div>
@@ -763,10 +783,14 @@
                             ],
                             metrics: {
                                 ascender: {
-                                    name:'Ascender'
+                                    name:'Ascender',
+                                    min: 0,
+                                    max: 1000
                                 },
                                 descender: {
-                                    name:'Descender'
+                                    name:'Descender',
+                                    min: -1000,
+                                    max: 0
                                 }
                             },
                             hinted: {
@@ -781,29 +805,22 @@
                                     value:'Latin',
                                     subsets: [
                                         {
-                                            name:'East European',
-                                            value:'EastEuropean',
-                                            disabled:true
+                                            name:'Basic Latin',
+                                            value:'BasicLatin',
+                                            disabled:true,
+                                            default:true
                                         },
                                         {
-                                            name:'Vietnamese',
-                                            value:'Vietnamese',
-                                            disabled:true
+                                            name:'Extended Latin',
+                                            value:'ExtendedLatin',
+                                            disabled:true,
+                                            default:false
                                         },
                                         {
-                                            name:'ASCII',
-                                            value:'ASCII',
-                                            disabled:true
-                                        },
-                                        {
-                                            name:'IPA',
-                                            value:'IPA',
-                                            disabled:true
-                                        },
-                                        {
-                                            name:'Full',
-                                            value:'Full',
-                                            disabled:true
+                                            name:'Unicode Latin',
+                                            value:'UnicodeLatin',
+                                            disabled:true,
+                                            default:false
                                         }
                                     ]
                                 },
@@ -812,14 +829,16 @@
                                     value:'Greek',
                                     subsets: [
                                         {
-                                            name:'Modern Greek',
-                                            value:'ModernGreek',
-                                            disabled:true
+                                            name:'Basic Greek',
+                                            value:'BasicGreek',
+                                            disabled:true,
+                                            default:true
                                         },
                                         {
-                                            name:'Polytonic Greek',
-                                            value:'PolytonicGreek',
-                                            disabled:true
+                                            name:'Extended Greek',
+                                            value:'ExtendedGreek',
+                                            disabled:true,
+                                            default:false
                                         }
                                     ]
                                 },
@@ -828,14 +847,52 @@
                                     value:'Cyrillic',
                                     subsets: [
                                         {
-                                            name:'Core Cyrillic',
-                                            value:'CoreCyrillic',
-                                            disabled:true
+                                            name:'Basic Cyrillic',
+                                            value:'BasicCyrillic',
+                                            disabled:true,
+                                            default:true
                                         },
                                         {
                                             name:'Extended Cyrillic',
                                             value:'ExtendedCyrillic',
-                                            disabled:true
+                                            disabled:true,
+                                            default:false
+                                        }
+                                    ]
+                                },
+                                {
+                                    name:'Arabic',
+                                    value:'Arabic',
+                                    subsets: [
+                                        {
+                                            name:'Basic Arabic',
+                                            value:'BasicArabic',
+                                            disabled:true,
+                                            default:true
+                                        },
+                                        {
+                                            name:'Extended Arabic',
+                                            value:'ExtendedArabic',
+                                            disabled:true,
+                                            default:false
+                                        }
+                                    ]
+                                },
+                                {
+                                    name:'Tamil',
+                                    value:'Tamil',
+                                    subsets: [
+                                        {
+                                            name:'Basic Tamil',
+                                            value:'BasicTamil',
+                                            disabled:true,
+                                            default:true
+                                        },
+                                        {
+                                            name:'Extended Tamil',
+                                            value:'ExtendedTamil',
+                                            disabled:true,
+                                            default:false
                                         }
                                     ]
                                 }
@@ -847,6 +904,7 @@
                             contrast: '',
                             styles: [],
                             scripts: [],
+                            scripts_filter: '',
                             weight: [],
                             width: [],
                             metrics: {
@@ -855,7 +913,13 @@
                             },
                             hinted: false,
                             ui: false,
-                            subset: [],
+                            subset: {
+                                Latin: '',
+                                Greek: '',
+                                Cyrillic: '',
+                                Tamil: '',
+                                Arabic: ''
+                            },
                             subset_chars: ''
                         },
                         showAllScripts: false,
@@ -914,16 +978,64 @@
                         var subsetUpdate = function(scriptName) {
                             var subsetScriptSelected = scope.isScriptSelected(scriptName);
                             var subsetDisabled = Boolean(!subsetScriptSelected);
+                            // disable Arabic subset controls if Nastaliq is checked
+                            if (scriptName === 'Arabic' && scope.options.styles.indexOf('Nastaliq') > -1) {
+                                subsetDisabled = true;
+                            }
                             subsetDict[scriptName].subsets.forEach(function(subset) {
                                 subset.disabled = subsetDisabled;
                                 if (subsetDisabled === true) {
-                                    utils.array.remove(scope.options.subset, subset.value);
+                                    // utils.array.remove(scope.options.subset, subset.value);
+                                    scope.options.subset[scriptName] = '';
+                                } else {
+                                    // automatically check default subset(s)
+                                    if (subset.default === true) {// && !(scriptName in scope.options.subset)) {
+                                        // scope.options.subset.push(subset.value);
+                                        scope.options.subset[scriptName] = subset.value;
+                                    }
                                 }
                             });
                         };
                         subsetUpdate('Latin');
                         subsetUpdate('Greek');
                         subsetUpdate('Cyrillic');
+                        subsetUpdate('Tamil');
+                        subsetUpdate('Arabic');
+                    },
+                    updateArabicStylesOnStylesChange: function() {
+                        var stylesSelected = this.options.styles;
+                        var indexOfKufi = stylesSelected.indexOf('Kufi');
+                        var indexOfNastaliq = stylesSelected.indexOf('Nastaliq');
+                        if (indexOfKufi > -1 && indexOfNastaliq > -1) {
+                            if (indexOfKufi < indexOfNastaliq) {
+                                // remove Kufi on check Nastaliq
+                                utils.array.remove(stylesSelected, 'Kufi');
+                            } else if (indexOfNastaliq < indexOfKufi) {
+                                // remove Nastaliq on check Kufi
+                                utils.array.remove(stylesSelected, 'Nastaliq');
+                            }
+                        }
+                    },
+                    onChangeStyles: function() {
+                        this.updateArabicStylesOnStylesChange();
+                        this.updateSubsetOnScriptsChange();
+                    },
+                    onChangeScriptsFilter: function() {
+                        var scripts = this.choices.scripts;
+                        var filter = this.options.scripts_filter;
+                        if (filter !== '') {
+                            scripts.forEach(function(el) {
+                                if (el.name.toLowerCase().indexOf(filter) === 0) {
+                                    el.hidden = false;
+                                } else {
+                                    el.hidden = true;
+                                }
+                            });
+                        } else {
+                            scripts.forEach(function(el) {
+                                el.hidden = false;
+                            });
+                        }
                     },
                     onChangeScripts: function() {
                         this.updateStylesOnScriptsChange();
@@ -932,73 +1044,75 @@
                     buildCommand: function() {
                         command_options = []
 
-                        name = this.options.name;
+                        let name = this.options.name;
                         if (name !== '') {
                             name = utils.string.replace(name, ' ', '-');
                             command_options.push('--name "' + name + '"');
                         }
 
-                        output = this.options.output;
+                        let output = this.options.output;
                         if (output.length > 0) {
                             command_options.push('--output ' + output.join(' '));
                         }
 
-                        scripts = this.options.scripts;
+                        let scripts = this.options.scripts;
                         if (scripts.length > 0) {
                             command_options.push('--scripts ' + scripts.join(' '));
                         }
 
-                        constrast = this.options.contrast;
+                        let constrast = this.options.contrast;
                         if (constrast !== '') {
                             command_options.push('--contrast ' + constrast);
                         }
 
-                        styles = this.options.styles;
+                        let styles = this.options.styles;
                         if (styles.length > 0) {
                             command_options.push('--styles ' + styles.join(' '));
                         }
 
-                        weight = this.options.weight;
+                        let weight = this.options.weight;
                         if (weight.length > 0) {
                             command_options.push('--weight ' + weight.join(' '));
                         }
 
-                        width = this.options.width;
+                        let width = this.options.width;
                         if (width.length > 0) {
                             command_options.push('--width ' + width.join(' '));
                         }
 
-                        metrics_ascender = Number(this.options.metrics.ascender);
-                        metrics_descender = Number(this.options.metrics.descender);
-                        metrics = [metrics_ascender, metrics_descender];
+                        let metrics_ascender = Number(this.options.metrics.ascender);
+                        let metrics_descender = Number(this.options.metrics.descender);
+                        let metrics = [metrics_ascender, metrics_descender];
                         if (!isNaN(metrics_ascender) && !isNaN(metrics_descender)) {
                             if (metrics_ascender || metrics_descender) {
                                 command_options.push('--metrics "' + metrics.join(' ') + '"');
                             }
                         }
 
-                        hinted = this.options.hinted;
+                        let hinted = this.options.hinted;
                         if (hinted === true) {
                             command_options.push('--hinted');
                         }
 
-                        ui = this.options.ui;
+                        let ui = this.options.ui;
                         if (ui === true) {
                             command_options.push('--ui');
                         }
 
-                        subset = this.options.subset;
-                        if (subset.length > 0) {
-                            command_options.push('--subset ' + subset.join(' '));
+                        let subset = this.options.subset;
+                        let subsetValues = utils.array.clean(utils.object.values(subset));
+                        if (subsetValues.length > 0) {
+                            subsetValues.sort();
+                            command_options.push('--preset ' + subsetValues.join(' '));
                         }
 
-                        subset_chars = this.options.subset_chars;
+                        let subset_chars = this.options.subset_chars;
                         if (subset_chars.length > 0) {
                             subset_chars_list = subset_chars.split('');
                             subset_chars_list = utils.array.unique(subset_chars_list);
                             subset_chars_list = utils.array.remove(subset_chars_list, ' ')
                             if (subset_chars_list.length > 0) {
-                                command_options.push('--subs "' + subset_chars_list.join('')+ '"');
+                                command_options.push('--subset "' + subset_chars_list.join('')+ '"');
                             }
                         }
 
@@ -1018,14 +1132,17 @@
                             // alert('Copying error... :(');
                         };
                         Clipboard.copy(this.command, onCopySuccess, onCopyError);
+                    },
+                    updateCommand: function() {
+                        this.command = this.buildCommand();
+                        this.commandOk = (this.options.contrast !== '' && this.options.scripts.length > 0);
                     }
                 },
                 mounted: function() {
                     this.ready = true;
                 },
                 updated: function() {
-                    this.command = this.buildCommand();
-                    this.commandOk = (this.options.contrast != '' && this.options.scripts.length > 0);
+                    this.updateCommand();
                 }
             });
         </script>
