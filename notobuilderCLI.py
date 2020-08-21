@@ -97,19 +97,25 @@ class Download:
                     + "/tree/master/fonts/ttf/hinted/instance_ttf"
                 )
             try:
+                _ = self.getSha(i)
                 api_url = self.createUrl(url)
             except:
                 try:
                     askedByUser = i
                     i = i.replace("Serif", "Sans")
                     url = url.replace("Serif", "Sans")
+                    _ = self.getSha(i)
+                    for i in range(len(self.editedRepoNames)):
+                        if self.editedRepoNames[i] == askedByUser:
+                            self.editedRepoNames[i] = i
                     api_url = self.createUrl(url)
-                    self.editedRepoNames.replace(askedByUser, i)
+                    print(i, "exists")
                 except:
-                    print(i.replace("Sans", "serif"), "does not exist." +
+                    print(i.replace("Sans", "Serif"), "does not exist." +
                             "Removed from writing system list"
                             )
-                    self.editedRepoNames.remove(i.replace("Sans", "Serif"))
+                    self.editedRepoNames.remove(askedByUser)
+                    print(i, " doesn't exists")
                     continue
             # CHECK SHA
             dlBool = True
@@ -299,9 +305,9 @@ class Notobuilder:
             "NotoSansAhom": "NotoSerifAhom",
         }
 
-        # self.sansOnly = ["CanadianAboriginal", "Kufi", "Music",
-        #                 "InscriptionalPahlavi", "PsalterPahlavi"
-        # ]
+        self.sansOnly = ["CanadianAboriginal", "Kufi", "Music",
+                        "InscriptionalPahlavi", "PsalterPahlavi"
+        ]
 
         self.fonts_with_ui_version = [
             "NotoSansKannada",
