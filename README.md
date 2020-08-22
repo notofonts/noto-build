@@ -46,7 +46,7 @@ Run it in a Terminal, using some of the following arguments:
 * --hinted
   * Downloads hinted fonts
   * Defaults to False
-* --subs
+* --subset
   * Pass a list of characters to subset the final fonts.
   * Optional
 * --metrics
@@ -55,6 +55,9 @@ Run it in a Terminal, using some of the following arguments:
 * --compatibility
   * Merge only the common weight/width
   * False by default
+* --preset
+  * Ask for predefined subset. (BasicLatin, ExtendedLatin or UnicodeLatin; BasicGreek or ExtendedGreek; BasicCyrillic or ExtendedCyrillic; BasicArabic or ExtendedArabic: BasicTamil or ExtendedTamil. You can specify "Full" if you have Latin, Greek and Cyrillic to not subset NotoSans, NotoSerif or NotoMono families.)
+  * Optional (Basic script by default is no argument is provided.)
 
 
 Examples:
