@@ -105,17 +105,15 @@ class Download:
                     i = i.replace("Serif", "Sans")
                     url = url.replace("Serif", "Sans")
                     _ = self.getSha(i)
-                    for i in range(len(self.editedRepoNames)):
-                        if self.editedRepoNames[i] == askedByUser:
-                            self.editedRepoNames[i] = i
+                    for z in range(len(self.editedRepoNames)):
+                        if self.editedRepoNames[z] == askedByUser:
+                            self.editedRepoNames[z] = i
                     api_url = self.createUrl(url)
-                    print(i, "exists")
                 except:
                     print(i.replace("Sans", "Serif"), "does not exist." +
                             "Removed from writing system list"
                             )
                     self.editedRepoNames.remove(askedByUser)
-                    print(i, " doesn't exists")
                     continue
             # CHECK SHA
             dlBool = True
