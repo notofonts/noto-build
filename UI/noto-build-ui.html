@@ -128,7 +128,7 @@
                     <div class="row">
                         <div class="col-6 col-sm-2" v-for="item in choices.contrast">
                             <div class="custom-control form-control-sm custom-radio">
-                                <input type="radio" v-model="options.contrast" v-bind:id="'contrast-' + item.value|slugify" v-bind:value="item.value" class="custom-control-input" required>
+                                <input type="radio" v-model="options.contrast" v-bind:id="'contrast-' + item.value|slugify" v-bind:value="item.value" v-on:change="onChangeContrast" class="custom-control-input" required>
                                 <label class="custom-control-label" v-bind:for="'contrast-' + item.value|slugify">{{ item.name }}</label>
                             </div>
                         </div>
@@ -252,7 +252,7 @@
                 </div>
             </div>
             <div class="row">
-                <div class="col-12 mb-4">
+                <div class="col-12 mb-2">
                     <label class="control-name h5 d-block mb-3">Coverage Presets</label>
                     <div class="row">
                         <div class="col-6 col-sm-4 col-md-4 mt-2 mb-4" v-for="group in choices.subset">
@@ -267,6 +267,52 @@
                         <div class="col-12 mb-3">
                             <label class="control-name d-block h6">Character Subset to Keep</label>
                             <textarea class="form-control form-control-sm" rows="3" v-model="options.subset_chars"></textarea>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <label class="control-name h5 d-block mb-3">Alternate Lettershapes</label>
+                    <div class="row mb-2">
+                        <div class="col-12 col-sm-4 mb-3 mb-sm-0 border-right">
+                            <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !(options.swap_enabled && options.swap_altIJ_enabled) }">
+                                <input type="radio" id="swap-altij-no" class="custom-control-input" v-model="options.swap_altIJ" v-bind:value="false">
+                                <label class="custom-control-label" for="swap-altij-no">Default I and J</label>
+                            </div>
+                            <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !(options.swap_enabled && options.swap_altIJ_enabled) }">
+                                <input type="radio" id="swap-altij-yes" class="custom-control-input" v-model="options.swap_altIJ" v-bind:value="true">
+                                <label class="custom-control-label" for="swap-altij-yes">Alternates I and J</label>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-8">
+                            <div class="row">
+                                <div class="col-12 col-md-6">
+                                    <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !options.swap_enabled }">
+                                        <input type="radio" id="swap-tlf" class="custom-control-input" v-model="options.swap_figures" value="">
+                                        <label class="custom-control-label" for="swap-tlf">Tabular Lining Figures</label>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !options.swap_enabled }">
+                                        <input type="radio" id="swap-plf" class="custom-control-input" v-model="options.swap_figures" value="plf">
+                                        <label class="custom-control-label" for="swap-plf">Proportional Lining Figures</label>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !options.swap_enabled }">
+                                        <input type="radio" id="swap-tosf" class="custom-control-input" v-model="options.swap_figures" value="tosf">
+                                        <label class="custom-control-label" for="swap-tosf">Tabular Old Style Figures</label>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !options.swap_enabled }">
+                                        <input type="radio" id="swap-osf" class="custom-control-input" v-model="options.swap_figures" value="osf">
+                                        <label class="custom-control-label" for="swap-osf">Old Style Figures</label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <!-- <hr> -->
@@ -958,7 +1004,11 @@
                                 Tamil: '',
                                 Arabic: ''
                             },
-                            subset_chars: ''
+                            subset_chars: '',
+                            swap_enabled: false,
+                            swap_altIJ_enabled: false,
+                            swap_altIJ: false,
+                            swap_figures: ''
                         },
                         showAllScripts: false,
                         command: '',
@@ -1038,6 +1088,23 @@
                         subsetUpdate('Arabic');
                         subsetUpdate('Tamil');
                     },
+                    updateSwapOnScriptsChange: function() {
+                        if (this.isScriptSelected('Latin') || this.isScriptSelected('Greek') || this.isScriptSelected('Cyrillic')) {
+                            this.options.swap_enabled = true;
+                        } else {
+                            this.options.swap_enabled = true;
+                            this.options.swap_altIJ = false;
+                            this.options.swap_figures = '';
+                        }
+                    },
+                    updateSwapAlternateIJOnContrastChange: function() {
+                        if (this.options.contrast === 'Sans') {
+                            this.options.swap_altIJ_enabled = true;
+                        } else {
+                            this.options.swap_altIJ_enabled = false;
+                            this.options.swap_altIJ = false;
+                        }
+                    },
                     updateArabicStylesOnStylesChange: function() {
                         var stylesSelected = this.options.styles;
                         var indexOfKufi = stylesSelected.indexOf('Kufi');
@@ -1051,6 +1118,9 @@
                                 utils.array.remove(stylesSelected, 'Nastaliq');
                             }
                         }
+                    },
+                    onChangeContrast: function() {
+                        this.updateSwapAlternateIJOnContrastChange();
                     },
                     onChangeStyles: function() {
                         this.updateArabicStylesOnStylesChange();
@@ -1086,6 +1156,7 @@
                     onChangeScripts: function() {
                         this.updateStylesOnScriptsChange();
                         this.updateSubsetOnScriptsChange();
+                        this.updateSwapOnScriptsChange();
                     },
                     onChangeWeightsAll: function() {
                         if (this.options.weights_all) {
@@ -1178,6 +1249,19 @@
                             if (subset_chars_list.length > 0) {
                                 command_options.push('--subset "' + subset_chars_list.join('')+ '"');
                             }
+                        }
+
+                        var swapOptions = [];
+                        var swap_altIJ = this.options.swap_altIJ;
+                        var swap_figures = this.options.swap_figures;
+                        if (swap_altIJ === true) {
+                            swapOptions.push('altIJ');
+                        }
+                        if (swap_figures.length > 0) {
+                            swapOptions.push(swap_figures);
+                        }
+                        if (swapOptions.length > 0) {
+                            command_options.push('--swap ' + swapOptions.join(' '));
                         }
 
                         return 'python ~/notobuilderCLI.py ' + command_options.join(' ');
