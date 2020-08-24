@@ -165,6 +165,14 @@
                 <div class="col-12">
                     <label class="control-name h5 d-block mb-3">Width</label>
                     <div class="row">
+                        <div class="col-12 mb-3">
+                            <div class="custom-control form-control-sm custom-checkbox">
+                                <input type="checkbox" v-model="options.widths_all" id="widths-all" v-bind:value="options.widths_all" v-on:change="onChangeWidthsAll" indeterminate class="custom-control-input">
+                                <label class="custom-control-label text-secondary" for="widths-all"><small>Select / Deselect all</small></label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
                         <div class="col-6 col-sm-4 col-md-3" v-for="item in choices.width">
                             <div class="custom-control form-control-sm custom-checkbox">
                                 <input type="checkbox" v-model="options.width" v-bind:id="'width-' + item.value|slugify" v-bind:value="item.value" class="custom-control-input">
@@ -925,6 +933,7 @@
                             weight: [],
                             weights_all: false,
                             width: [],
+                            widths_all: false,
                             metrics: {
                                 ascender: 0,
                                 descender: 0
@@ -1074,6 +1083,15 @@
                             });
                         } else {
                             this.options.weight = [];
+                        }
+                    },
+                    onChangeWidthsAll: function() {
+                        if (this.options.widths_all) {
+                            this.options.width = this.choices.width.map(function(item) {
+                                return item.value;
+                            });
+                        } else {
+                            this.options.width = [];
                         }
                     },
                     buildCommand: function() {
