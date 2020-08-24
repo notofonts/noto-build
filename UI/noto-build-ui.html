@@ -75,8 +75,16 @@
                         <div class="col-12 col-md-6">
                             <label class="control-name h5 d-block mb-3">Writing Systems Coverage<sup>*</sup></label>
                         </div>
-                        <div class="col-12 col-md-6">
-                            <input class="form-control form-control-sm mb-3 mb-md-3" v-model="options.scripts_filter" type="text" placeholder="Filter..." v-on:input="onChangeScriptsFilter">
+                    </div>
+                    <div class="row">
+                        <div class="col-12 col-md-6 order-md-2 mb-3">
+                            <input class="form-control form-control-sm" v-model="options.scripts_filter" type="text" placeholder="Filter..." v-on:input="onChangeScriptsFilter">
+                        </div>
+                        <div class="col-12 col-md-6 order-md-1 mb-3">
+                            <div class="custom-control form-control-sm custom-checkbox">
+                                <input type="checkbox" v-model="options.scripts_all" id="scripts-all" v-bind:value="options.scripts_all" v-on:change="onChangeScriptsAll" class="custom-control-input">
+                                <label class="custom-control-label text-secondary" for="scripts-all"><small>Select / Deselect all</small></label>
+                            </div>
                         </div>
                     </div>
                     <div class="row">
@@ -904,6 +912,7 @@
                             contrast: '',
                             styles: [],
                             scripts: [],
+                            scripts_all: false,
                             scripts_filter: '',
                             weight: [],
                             width: [],
@@ -1034,6 +1043,16 @@
                                 el.hidden = false;
                             });
                         }
+                    },
+                    onChangeScriptsAll: function() {
+                        if (this.options.scripts_all) {
+                            this.options.scripts = this.choices.scripts.map(function(item) {
+                                return item.value;
+                            });
+                        } else {
+                            this.options.scripts = [];
+                        }
+                        this.onChangeScripts();
                     },
                     onChangeScripts: function() {
                         this.updateStylesOnScriptsChange();
