@@ -64,9 +64,17 @@
             <div class="row">
                 <div class="col-12 text-nowrap mt-4">
                     <label class="control-name h5 d-block mb-3">Font Name</label>
-                    <div class="row">
-                        <div class="col-12 col-md-6 mb-2">
-                            <input class="form-control form-control-sm" v-model="options.name" type="text" placeholder="My Noto">
+                    <div class="row align-items-center">
+                        <div class="col-12 col-md-6 mb-3 mb-md-2">
+                            <input class="form-control form-control-sm" type="text" placeholder="My Noto" v-model="options.name">
+                        </div>
+                        <div class="col-6 col-sm-4 col-md-3 mb-2">
+                            <div class="input-group input-group-sm">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">Version</span>
+                                </div>
+                                <input class="form-control form-control-sm" type="text" placeholder="1.000" v-model="options.version">
+                            </div>
                         </div>
                     </div>
                     <hr>
@@ -987,6 +995,7 @@
                         },
                         options: {
                             name: '',
+                            version: '',
                             output: [],
                             contrast: '',
                             styles: [],
@@ -1184,6 +1193,12 @@
                         if (name !== '') {
                             name = utils.string.replace(name, ' ', '-');
                             command_options.push('--name "' + name + '"');
+                        }
+
+                        var version = this.options.version;
+                        if (version !== '') {
+                            // name = utils.string.replace(name, ' ', '-');
+                            command_options.push('--version ' + version);
                         }
 
                         var output = this.options.output;
