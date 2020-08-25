@@ -260,7 +260,7 @@
             <div class="row">
                 <div class="col-12 mb-2">
                     <label class="control-name h5 d-block mb-3">Coverage Presets</label>
-                    <div class="row">
+                    <div class="row mb-2">
                         <div class="col-6 col-sm-4 col-md-4 mt-2 mb-4" v-for="group in choices.subset">
                             <label class="control-name d-block h6">{{ group.name }}</label>
                             <div class="custom-control form-control-sm custom-radio" v-for="item in group.subsets" v-bind:class="{ 'disabled': item.disabled }">
@@ -272,7 +272,7 @@
                     <div class="row">
                         <div class="col-12 mb-3">
                             <label class="control-name d-block h6">Character Subset to Keep</label>
-                            <textarea class="form-control form-control-sm" rows="3" v-model="options.subset_chars"></textarea>
+                            <textarea class="form-control form-control-sm" rows="3" v-model="options.subset_chars" v-on:input="onChangeCharacterSubset"></textarea>
                         </div>
                     </div>
                     <hr>
@@ -1032,17 +1032,17 @@
                     }
                 },
                 methods: {
-                    toggleShowAllScripts: function function_name(argument) {
-                        this.showAllScripts = !this.showAllScripts;
-                    },
                     isScriptSelected: function(name) {
                         return utils.array.contains(
                             this.options.scripts, name);
                     },
-                    updateStylesOnScriptsChange: function() {
+                    toggleShowAllScripts: function(argument) {
+                        this.showAllScripts = !this.showAllScripts;
+                    },
+                    updateStyles: function() {
                         var scope = this;
                         var stylesDict = utils.array.index(this.choices.styles, 'name', true);
-                        var stylesUpdate = function(scriptName, styleNames) {
+                        var enableScriptStyles = function(scriptName, styleNames) {
                             if (scope.isScriptSelected(scriptName)) {
                                 styleNames.forEach(function(styleName) {
                                     stylesDict[styleName].disabled = false;
@@ -1054,11 +1054,11 @@
                             style.disabled = true;
                         });
                         // enable only style choices of selected scripts
-                        stylesUpdate('Latin', ['Italic', 'Display', 'Mono']);
-                        stylesUpdate('Greek', ['Italic', 'Display', 'Mono']);
-                        stylesUpdate('Cyrillic', ['Italic', 'Display', 'Mono']);
-                        stylesUpdate('Tamil', ['Italic']);
-                        stylesUpdate('Arabic', ['Kufi', 'Nastaliq']);
+                        enableScriptStyles('Latin', ['Italic', 'Display', 'Mono']);
+                        enableScriptStyles('Greek', ['Italic', 'Display', 'Mono']);
+                        enableScriptStyles('Cyrillic', ['Italic', 'Display', 'Mono']);
+                        enableScriptStyles('Tamil', ['Italic']);
+                        enableScriptStyles('Arabic', ['Kufi', 'Nastaliq']);
                         // remove disabled style choices from options
                         this.choices.styles.forEach(function(style) {
                             if (style.disabled === true) {
@@ -1066,52 +1066,7 @@
                             }
                         });
                     },
-                    updateSubsetOnScriptsChange: function() {
-                        var scope = this;
-                        var subsetDict = utils.array.index(this.choices.subset, 'name', true);
-                        var subsetUpdate = function(scriptName) {
-                            var subsetScriptSelected = scope.isScriptSelected(scriptName);
-                            var subsetDisabled = Boolean(!subsetScriptSelected);
-                            // disable Arabic subset controls if Nastaliq is checked
-                            if (scriptName === 'Arabic' && scope.options.styles.indexOf('Nastaliq') > -1) {
-                                subsetDisabled = true;
-                            }
-                            subsetDict[scriptName].subsets.forEach(function(subset) {
-                                subset.disabled = subsetDisabled;
-                                if (subsetDisabled === true) {
-                                    scope.options.subset[scriptName] = '';
-                                } else {
-                                    // automatically check default subset(s)
-                                    if (subset.default === true) {// && !(scriptName in scope.options.subset)) {
-                                        scope.options.subset[scriptName] = subset.value;
-                                    }
-                                }
-                            });
-                        };
-                        subsetUpdate('Latin');
-                        subsetUpdate('Greek');
-                        subsetUpdate('Cyrillic');
-                        subsetUpdate('Arabic');
-                        subsetUpdate('Tamil');
-                    },
-                    updateSwapOnScriptsChange: function() {
-                        if (this.isScriptSelected('Latin') || this.isScriptSelected('Greek') || this.isScriptSelected('Cyrillic')) {
-                            this.options.swap_enabled = true;
-                        } else {
-                            this.options.swap_enabled = false;
-                            this.options.swap_altIJ = false;
-                            this.options.swap_figures = '';
-                        }
-                    },
-                    updateSwapAlternateIJOnContrastChange: function() {
-                        if (this.options.contrast === 'Sans') {
-                            this.options.swap_altIJ_enabled = true;
-                        } else {
-                            this.options.swap_altIJ_enabled = false;
-                            this.options.swap_altIJ = false;
-                        }
-                    },
-                    updateArabicStylesOnStylesChange: function() {
+                    updateStylesArabic: function() {
                         var stylesSelected = this.options.styles;
                         var indexOfKufi = stylesSelected.indexOf('Kufi');
                         var indexOfNastaliq = stylesSelected.indexOf('Nastaliq');
@@ -1125,12 +1080,67 @@
                             }
                         }
                     },
+                    updateSubset: function() {
+                        var scope = this;
+                        var subsetDict = utils.array.index(this.choices.subset, 'name', true);
+                        var updateSubsetForScript = function(scriptName) {
+                            var subsetScriptSelected = scope.isScriptSelected(scriptName);
+                            var subsetDisabled = Boolean(!subsetScriptSelected);
+                            // disable Arabic subset controls if Nastaliq is checked
+                            if (scriptName === 'Arabic' && scope.options.styles.indexOf('Nastaliq') > -1) {
+                                subsetDisabled = true;
+                            }
+                            if (scope.options.subset_chars !== '') {
+                                subsetDisabled = true;
+                            }
+                            subsetDict[scriptName].subsets.forEach(function(subset) {
+                                subset.disabled = subsetDisabled;
+                                if (subsetDisabled === true) {
+                                    scope.options.subset[scriptName] = '';
+                                } else {
+                                    // automatically check default subset(s)
+                                    if (subset.default === true) {
+                                        scope.options.subset[scriptName] = subset.value;
+                                    }
+                                }
+                            });
+                        };
+                        updateSubsetForScript('Arabic');
+                        updateSubsetForScript('Cyrillic');
+                        updateSubsetForScript('Greek');
+                        updateSubsetForScript('Latin');
+                        updateSubsetForScript('Tamil');
+                    },
+                    updateSwap: function() {
+                        if (this.isScriptSelected('Latin') || this.isScriptSelected('Greek') || this.isScriptSelected('Cyrillic')) {
+                            this.options.swap_enabled = true;
+                        } else {
+                            this.options.swap_enabled = false;
+                            this.options.swap_altIJ = false;
+                            this.options.swap_figures = '';
+                        }
+                        if (this.options.contrast === 'Sans') {
+                            this.options.swap_altIJ_enabled = true;
+                        } else {
+                            this.options.swap_altIJ_enabled = false;
+                            this.options.swap_altIJ = false;
+                        }
+                    },
+                    updateSelectDeselectAll: function(allKey, valuesKey) {
+                        if (this.options[allKey]) {
+                            this.options[valuesKey] = this.choices[valuesKey].map(function(item) {
+                                return item.value;
+                            });
+                        } else {
+                            this.options[valuesKey] = [];
+                        }
+                    },
                     onChangeContrast: function() {
-                        this.updateSwapAlternateIJOnContrastChange();
+                        this.updateSwap();
                     },
                     onChangeStyles: function() {
-                        this.updateArabicStylesOnStylesChange();
-                        this.updateSubsetOnScriptsChange();
+                        this.updateStylesArabic();
+                        this.updateSubset();
                     },
                     onChangeScriptsFilter: function() {
                         var scripts = this.choices.scripts;
@@ -1150,37 +1160,22 @@
                         }
                     },
                     onChangeScriptsAll: function() {
-                        if (this.options.scripts_all) {
-                            this.options.scripts = this.choices.scripts.map(function(item) {
-                                return item.value;
-                            });
-                        } else {
-                            this.options.scripts = [];
-                        }
+                        this.updateSelectDeselectAll('scripts_all', 'scripts');
                         this.onChangeScripts();
                     },
                     onChangeScripts: function() {
-                        this.updateStylesOnScriptsChange();
-                        this.updateSubsetOnScriptsChange();
-                        this.updateSwapOnScriptsChange();
+                        this.updateStyles();
+                        this.updateSubset();
+                        this.updateSwap();
                     },
                     onChangeWeightsAll: function() {
-                        if (this.options.weights_all) {
-                            this.options.weight = this.choices.weight.map(function(item) {
-                                return item.value;
-                            });
-                        } else {
-                            this.options.weight = [];
-                        }
+                        this.updateSelectDeselectAll('weights_all', 'weight');
                     },
                     onChangeWidthsAll: function() {
-                        if (this.options.widths_all) {
-                            this.options.width = this.choices.width.map(function(item) {
-                                return item.value;
-                            });
-                        } else {
-                            this.options.width = [];
-                        }
+                        this.updateSelectDeselectAll('widths_all', 'width');
+                    },
+                    onChangeCharacterSubset: function() {
+                        this.updateSubset();
                     },
                     buildCommand: function() {
                         command_options = []
@@ -1221,8 +1216,9 @@
                             command_options.push('--width ' + width.join(' '));
                         }
 
-                        var metrics_ascender = Number(this.options.metrics.ascender);
-                        var metrics_descender = Number(this.options.metrics.descender);
+                        var metrics_options = this.options.metrics;
+                        var metrics_ascender = Number(metrics_options.ascender);
+                        var metrics_descender = Number(metrics_options.descender);
                         var metrics = [metrics_ascender, metrics_descender];
                         if (!isNaN(metrics_ascender) && !isNaN(metrics_descender)) {
                             if (metrics_ascender || metrics_descender) {
