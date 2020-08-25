@@ -1248,12 +1248,16 @@
                         }
 
                         var subset_chars = this.options.subset_chars;
+                        var subset_chars_list;
                         if (subset_chars.length > 0) {
                             subset_chars_list = subset_chars.split('');
                             subset_chars_list = utils.array.unique(subset_chars_list);
                             subset_chars_list = utils.array.remove(subset_chars_list, ' ')
                             if (subset_chars_list.length > 0) {
-                                command_options.push('--subset "' + subset_chars_list.join('')+ '"');
+                                subset_chars_list.sort();
+                                subset_chars = subset_chars_list.join('');
+                                subset_chars = utils.string.replace(subset_chars, '"', '\\"');
+                                command_options.push('--subset "' + subset_chars + '"');
                             }
                         }
 
