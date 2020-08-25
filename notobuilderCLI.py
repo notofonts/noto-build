@@ -69,12 +69,11 @@ class Download:
             )
         api_url = self.createUrl(folder_url)
         response = urllib.request.urlretrieve(api_url)
-        with open(response[0], "r") as f:
-            data_brutes = f.read()
-            data = json.loads(data_brutes)
-            for index, f in enumerate(data):
-                if f["name"] == "instance_ttf":
-                    self.sha = f["sha"]
+        with open(response[0], "r") as content:
+            data = json.loads(content.read())
+            for index, file in enumerate(data):
+                if file["name"] == "instance_ttf":
+                    self.sha = file["sha"]
         return self.sha
 
     def writeSha(self, repoName):
@@ -370,7 +369,7 @@ class Notobuilder:
     def readJson(self, jsonpath, writingsystem):
         lgcPresets = {"Latin":["BasicLatin", "ExtendedLatin", "UnicodeLatin"],
                 "Greek": ["BasicGreek", "ExtendedGreek"],
-                "Cyrillic":["Basic Cyrillic", "ExtendedCyrillic"]}
+                "Cyrillic":["BasicCyrillic", "ExtendedCyrillic"]}
 
         # if no preset is specified, take the basic set
         if len(set(self.preset) & set(lgcPresets[writingsystem])) == 0:
@@ -463,11 +462,10 @@ class Notobuilder:
         if "TamilSupplement" in self.preset:
             self.repoNames.append("NotoSansTamilSupplement")
 
-        # print("asked", self.repoNames)
+        print("asked", self.repoNames)
         dl = Download(self.repoNames, self.scriptsFolder, self.hinted)
         dl.dwnldFonts()
         self.repoNames = dl.getEditedRepoNames()
-        # print("returned", self.repoNames)
 
         self.buildWghtWdthstyleName()
 
@@ -498,11 +496,15 @@ class Notobuilder:
         self.buildFonts2mergeList()
 
     def buildFonts2mergeList(self):
+        typographicStyles = ["Black", "Bold", "SemiBold",
+            "Medium", "Light", "SemiLight", "Light", "Thin", "Regular"
+            ]
         for s in self.wghtwdth_styles:
             self.tempStyle = s
             self.fonts2merge_list = []
             print("\n> The followings fonts can be merged:")
             for n in self.repoNames:
+                print(n)
                 ftname = "-".join([n, s]) + ".ttf"
                 if "Italic" in ftname:
                     old = "-Italic-" + s
@@ -551,42 +553,50 @@ class Notobuilder:
                                     os.path.basename(ftpath.replace(s, "Regular")),
                                     "[FALLBACK]",
                                 )
-                            else:
-                                print(
-                                    "No font matches the requirements. The script",
-                                    n,
-                                    "is removed from the list",
-                                )
+                            # else:
+                            #     print(
+                            #         "No font matches the requirements. The script",
+                            #         n,
+                            #         "is removed from the list",
+                            #     )
                         else:
-                            if os.path.isfile(
-                                os.path.join(
-                                    os.path.dirname(ftpath),
-                                    os.path.basename(ftpath.replace(s, "Regular")),
-                                )
-                            ):
-                                self.fonts2merge_list.append(
-                                    ftpath.replace(
-                                        ftpath,
+                            localisation = 8
+                            fallback = False
+                            if s in typographicStyles:
+                                localisation = typographicStyles.index(s)
+                            for styl in typographicStyles[localisation:]:
+                                if fallback is False:
+                                    if os.path.isfile(
                                         os.path.join(
                                             os.path.dirname(ftpath),
-                                            os.path.basename(
-                                                ftpath.replace(s, "Regular")
-                                            ),
-                                        ),
+                                            os.path.basename(ftpath.replace(s, styl)),
+                                        )
+                                    ):
+                                        self.fonts2merge_list.append(
+                                            ftpath.replace(
+                                                ftpath,
+                                                os.path.join(
+                                                    os.path.dirname(ftpath),
+                                                    os.path.basename(
+                                                        ftpath.replace(s, styl)
+                                                    ),
+                                                ),
+                                            )
+                                        )
+                                        print(
+                                            "  ✓",
+                                            os.path.basename(ftpath.replace(s, styl)),
+                                            "[FALLBACK]",
+                                        )
+                                        fallback = True
+                        if fallback is False:
+                            print(
+                                "No font matches the requirements. The script",
+                                n,
+                                "is removed from the list",
                                     )
-                                )
-                                print(
-                                    "  ✓",
-                                    os.path.basename(ftpath.replace(s, "Regular")),
-                                    "[FALLBACK]",
-                                )
-                            else:
-                                print(
-                                    "No font matches the requirements. The script",
-                                    n,
-                                    "is removed from the list",
-                                )
             # subset Latin / Greek / Cyrillic if needed
+            # print(self.fonts2merge_list)
             self.lgcSub()
             # subset Arabic if needed
             if "Arabic" in self.writingSystems:
@@ -1114,6 +1124,7 @@ def main():
     parser.add_argument("--metrics", nargs=2, help="")
     parser.add_argument("--subset", nargs=1)
     parser.add_argument("--compatibility", action="store_true")
+    parser.add_argument("--github_account", action="store_true")
     args = parser.parse_args()
 
     newName = "My Noto"
