@@ -692,6 +692,10 @@ var app = new Vue({
         }
     },
     methods: {
+        clearScriptsFilter: function() {
+            this.options.scripts_filter = '';
+            this.onChangeScriptsFilter();
+        },
         isScriptSelected: function(name) {
             return utils.array.contains(
                 this.options.scripts, name);

@@ -61,7 +61,7 @@
                             <label class="control-name h5 d-block">Writing Systems Coverage<sup>*</sup></label>
                         </div>
                         <div class="col-12 col-md-6 mb-2 mb-md-0">
-                            <input class="form-control form-control-sm" v-model="options.scripts_filter" type="text" placeholder="Filter..." v-on:input="onChangeScriptsFilter">
+                            <input class="form-control form-control-sm" v-model="options.scripts_filter" type="text" placeholder="Filter..." maxlength="30" v-on:input="onChangeScriptsFilter"><button type="button" class="btn btn-sm bg-transparent clear-input-button" aria-hidden="true" @click="clearScriptsFilter" v-if="options.scripts_filter !== ''">×</button>
                         </div>
                         <div class="col-12 mb-3">
                             <div class="custom-control form-control-sm custom-checkbox">
