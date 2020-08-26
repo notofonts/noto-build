@@ -9,6 +9,8 @@
         <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.js" integrity="sha256-NSuqgY2hCZJUN6hDMFfdxvkexI7+iLxXQbL540RQ/c4=" crossorigin="anonymous"></script>
         <script src="https://cdn.jsdelivr.net/npm/@fabiocaccamo/utils.js@0.11.0/dist/utils.min.js" integrity="sha256-S60ZC8AUyIS3MyisO+OjgRrgiJ86OIozBq4f/RLmYGg=" crossorigin="anonymous"></script>
         <script src="https://cdn.jsdelivr.net/npm/clipboard.js@1.0.1/dist/clipboard.min.js" integrity="sha256-HUQP8SUHMJ/pHYah14Em47rjRwTvxaADBSuOJI9DuiU=" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.10.2/Sortable.min.js" integrity="sha256-8Ww0c1qKDMdHT2+3s3369kzSXcgIrvqzSwzjdZ5qHDs=" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vuedraggable@2.24.1/dist/vuedraggable.umd.min.js" integrity="sha256-3ux9DyWlRqDg9v2ZHRlKrQPru/To6i2BfQv4lenuRfs=" crossorigin="anonymous"></script>
         <style>
             html, body {
                 width: 100%;
@@ -38,6 +40,18 @@
                     -ms-user-select: none; /* Internet Explorer/Edge */
                         user-select: none; /* Non-prefixed version, currently
                                               supported by Chrome and Opera */
+            }
+            .draggable {
+                /* https://stackoverflow.com/questions/5697067/css-for-grabbing-cursors-drag-drop#18294634 */
+                cursor: move; /* fallback if grab cursor is unsupported */
+                cursor: grab;
+                cursor: -moz-grab;
+                cursor: -webkit-grab;
+            }
+            .draggable.sortable-chosen {
+                cursor: grabbing;
+                cursor: -moz-grabbing;
+                cursor: -webkit-grabbing;
             }
             .command-container {
                 position: sticky;
@@ -134,6 +148,35 @@
                         </div>
                     </div>
                     <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                <template v-if="options.scripts.length > 1">
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="control-name h5 d-block">Writing Systems Priorities</label>
+                            <small class="text-secondary">Drag the selected writing systems to change priorities.</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-1">
+                            <draggable v-model="options.scripts" group="scripts" @start="options.scripts_dragging=true" @end="options.scripts_dragging=false">
+                                <small class="bg-dark text-white rounded mr-1 mb-1 pt-1 pr-2 pb-1 pl-2 d-inline-block draggable" v-for="item in options.scripts">{{ item }} </small>
+                            </draggable>
+                        </div>
+                    </div>
+                    <hr>
+                </template>
+                <template v-else>
+                    <div class="row">
+                        <div class="col-12 mb-1">
+                            <label class="control-name h5 d-block">Writing Systems Priorities</label>
+                            <small class="text-secondary">Select two or more writing systems, please.</small>
+                        </div>
+                    </div>
+                    <hr>
+                </template>
                 </div>
             </div>
             <div class="row">
@@ -1002,6 +1045,7 @@
                             scripts: [],
                             scripts_all: false,
                             scripts_filter: '',
+                            scripts_dragging: false,
                             weight: [],
                             weights_all: false,
                             width: [],
