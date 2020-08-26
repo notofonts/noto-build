@@ -111,14 +111,12 @@
             <div class="row">
                 <div class="col-12">
                     <div class="row">
-                        <div class="col-12 col-md-6 mb-2 mb-md-2">
+                        <div class="col-12 col-md-6 mb-2 mb-md-0">
                             <label class="control-name h5 d-block">Writing Systems Coverage<sup>*</sup></label>
                         </div>
-                        <div class="col-12 col-md-6 mb-3 mb-md-2">
+                        <div class="col-12 col-md-6 mb-2 mb-md-0">
                             <input class="form-control form-control-sm" v-model="options.scripts_filter" type="text" placeholder="Filter..." v-on:input="onChangeScriptsFilter">
                         </div>
-                    </div>
-                    <div class="row">
                         <div class="col-12 mb-3">
                             <div class="custom-control form-control-sm custom-checkbox">
                                 <input type="checkbox" v-model="options.scripts_all" id="scripts-all" v-bind:value="options.scripts_all" v-on:change="onChangeScriptsAll" class="custom-control-input">
@@ -127,11 +125,11 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-6 col-sm-4 col-md-3" v-for="item in choices.scripts" v-if="(!item.hidden) && ((item.featured || showAllScripts) || (!item.featured && !showAllScripts && options.scripts_filter && options.scripts_filter !== ''))">
+                        <div class="col-6 col-sm-4 col-md-3" v-for="item in choices.scripts" v-if="(!item.hidden) && ((item.featured || options.scripts_show_all) || (!item.featured && !options.scripts_show_all && options.scripts_filter && options.scripts_filter !== ''))">
                             <div class="custom-control form-control-sm custom-checkbox" v-bind:class="{ 'control-featured':item.featured }">
                                 <input type="checkbox" v-model="options.scripts" v-bind:id="'scripts-' + item.value|slugify" v-bind:value="item.value" v-on:change="onChangeScripts" class="custom-control-input" required>
                                 <label class="custom-control-label" v-bind:for="'scripts-' + item.value|slugify">
-                                    <template v-if="item.featured && showAllScripts"><strong>{{ item.name }}</strong></template>
+                                    <template v-if="item.featured && options.scripts_show_all"><strong>{{ item.name }}</strong></template>
                                     <template v-else>{{ item.name }}</template>
                                 </label>
                             </div>
@@ -139,9 +137,9 @@
                     </div>
                     <div class="row">
                         <div class="col-12 mt-3 text-center" v-if="!(options.scripts_filter && options.scripts_filter !== '')">
-                            <button type="button" class="btn btn-sm text-secondary btn-link border-0" @click="toggleShowAllScripts">
+                            <button type="button" class="btn btn-sm text-secondary btn-link border-0" @click="toggleScriptsShowAll">
                                 <small>
-                                    <template v-if="showAllScripts">Show less&hellip;</template>
+                                    <template v-if="options.scripts_show_all">Show less&hellip;</template>
                                     <template v-else>Show more&hellip;</template>
                                 </small>
                             </button>
@@ -201,9 +199,9 @@
             </div>
             <div class="row">
                 <div class="col-12">
-                    <label class="control-name h5 d-block mb-3">Weight</label>
                     <div class="row">
                         <div class="col-12 mb-3">
+                            <label class="control-name h5 d-block _mb-3">Weight</label>
                             <div class="custom-control form-control-sm custom-checkbox">
                                 <input type="checkbox" v-model="options.weights_all" id="weights-all" v-bind:value="options.weights_all" v-on:change="onChangeWeightsAll" indeterminate class="custom-control-input">
                                 <label class="custom-control-label text-secondary" for="weights-all"><small>Select / Deselect all</small></label>
@@ -223,9 +221,9 @@
             </div>
             <div class="row">
                 <div class="col-12">
-                    <label class="control-name h5 d-block mb-3">Width</label>
                     <div class="row">
                         <div class="col-12 mb-3">
+                            <label class="control-name h5 d-block">Width</label>
                             <div class="custom-control form-control-sm custom-checkbox">
                                 <input type="checkbox" v-model="options.widths_all" id="widths-all" v-bind:value="options.widths_all" v-on:change="onChangeWidthsAll" indeterminate class="custom-control-input">
                                 <label class="custom-control-label text-secondary" for="widths-all"><small>Select / Deselect all</small></label>
@@ -322,7 +320,7 @@
                 </div>
             </div>
             <div class="row">
-                <div class="col-12 mb-4">
+                <div class="col-12 mb-5">
                     <label class="control-name h5 d-block mb-3">Alternate Lettershapes</label>
                     <div class="row mb-2">
                         <div class="col-12 col-sm-4 mb-3 mb-sm-0 border-right">
@@ -391,7 +389,7 @@
             </div>
         </div>
         <script>
-            new Vue({
+            var app = new Vue({
                 el: '#app',
                 data: function() {
                     return {
@@ -1028,6 +1026,11 @@
                                 }
                             ]
                         },
+                        choicesIndexed: {
+                            scriptsByValue: {},
+                            stylesByName: {},
+                            subsetByName: {}
+                        },
                         options: {
                             name: '',
                             version: '',
@@ -1037,6 +1040,7 @@
                             scripts: [],
                             scripts_all: false,
                             scripts_filter: '',
+                            scripts_show_all: false,
                             scripts_dragging: false,
                             weight: [],
                             weights_all: false,
@@ -1061,7 +1065,6 @@
                             swap_altIJ: false,
                             swap_figures: ''
                         },
-                        showAllScripts: false,
                         command: '',
                         commandOk: false,
                         copyCommandDone: false,
@@ -1069,6 +1072,9 @@
                     }
                 },
                 filters: {
+                    scriptName: function(value) {
+                        return app.choicesIndexed.scriptsByValue[value]['name'];
+                    },
                     slugify: function (value) {
                         return utils.string.slugify(value);
                     },
@@ -1081,30 +1087,36 @@
                         return utils.array.contains(
                             this.options.scripts, name);
                     },
-                    toggleShowAllScripts: function(argument) {
-                        this.showAllScripts = !this.showAllScripts;
+                    toggleScriptsShowAll: function(argument) {
+                        this.options.scripts_show_all = !this.options.scripts_show_all;
                     },
-                    updateStyles: function() {
-                        var scope = this;
-                        var stylesDict = utils.array.index(this.choices.styles, 'name', true);
-                        var enableScriptStyles = function(scriptName, styleNames) {
-                            if (scope.isScriptSelected(scriptName)) {
-                                styleNames.forEach(function(styleName) {
-                                    stylesDict[styleName].disabled = false;
-                                });
-                            }
-                        };
+                    disableAllStyles: function() {
                         // disable all style choices
                         this.choices.styles.forEach(function(style) {
                             style.disabled = true;
                         });
+                    },
+                    enableScriptStyles: function(scriptName, styleNames) {
                         // enable only style choices of selected scripts
-                        enableScriptStyles('Latin', ['Italic', 'Display', 'Mono']);
-                        enableScriptStyles('Greek', ['Italic', 'Display', 'Mono']);
-                        enableScriptStyles('Cyrillic', ['Italic', 'Display', 'Mono']);
-                        enableScriptStyles('Tamil', ['Italic']);
-                        enableScriptStyles('Arabic', ['Kufi', 'Nastaliq']);
+                        var scope = this;
+                        if (this.isScriptSelected(scriptName)) {
+                            styleNames.forEach(function(styleName) {
+                                scope.choicesIndexed.stylesByName[styleName].disabled = false;
+                            });
+                        }
+                    },
+                    updateStyles: function() {
+                        this.disableAllStyles();
+                        this.enableScriptStyles('Latin', ['Italic', 'Display', 'Mono']);
+                        this.enableScriptStyles('Greek', ['Italic', 'Display', 'Mono']);
+                        this.enableScriptStyles('Cyrillic', ['Italic', 'Display', 'Mono']);
+                        this.enableScriptStyles('Tamil', ['Italic']);
+                        this.enableScriptStyles('Arabic', ['Kufi', 'Nastaliq']);
+                        this.updateStylesOptions();
+                    },
+                    updateStylesOptions: function() {
                         // remove disabled style choices from options
+                        var scope = this;
                         this.choices.styles.forEach(function(style) {
                             if (style.disabled === true) {
                                 utils.array.remove(scope.options.styles, style.value);
@@ -1126,35 +1138,38 @@
                         }
                     },
                     updateSubset: function() {
+                        this.updateSubsetForScript('Arabic');
+                        this.updateSubsetForScript('Cyrillic');
+                        this.updateSubsetForScript('Greek');
+                        this.updateSubsetForScript('Latin');
+                        this.updateSubsetForScript('Tamil');
+                    },
+                    updateSubsetForScript: function(scriptName) {
                         var scope = this;
-                        var subsetDict = utils.array.index(this.choices.subset, 'name', true);
-                        var updateSubsetForScript = function(scriptName) {
-                            var subsetScriptSelected = scope.isScriptSelected(scriptName);
-                            var subsetDisabled = Boolean(!subsetScriptSelected);
-                            // disable Arabic subset controls if Nastaliq is checked
-                            if (scriptName === 'Arabic' && scope.options.styles.indexOf('Nastaliq') > -1) {
-                                subsetDisabled = true;
-                            }
-                            if (scope.options.subset_chars !== '') {
-                                subsetDisabled = true;
-                            }
-                            subsetDict[scriptName].subsets.forEach(function(subset) {
-                                subset.disabled = subsetDisabled;
-                                if (subsetDisabled === true) {
-                                    scope.options.subset[scriptName] = '';
-                                } else {
-                                    // automatically check default subset(s)
-                                    if (subset.default === true) {
-                                        scope.options.subset[scriptName] = subset.value;
-                                    }
+                        var subsetScriptSelected = this.isScriptSelected(scriptName);
+                        var subsetDisabled = Boolean(!subsetScriptSelected);
+                        // disable Arabic subset controls if Nastaliq is checked
+                        if (scriptName === 'Arabic' && this.options.styles.indexOf('Nastaliq') > -1) {
+                            subsetDisabled = true;
+                        }
+                        if (this.options.subset_chars !== '') {
+                            subsetDisabled = true;
+                        }
+                        this.updateSubsetForScriptOptions(scriptName, subsetDisabled);
+                    },
+                    updateSubsetForScriptOptions: function(scriptName, disabled) {
+                        var scope = this;
+                        this.choicesIndexed.subsetByName[scriptName].subsets.forEach(function(subset) {
+                            subset.disabled = disabled;
+                            if (disabled === true) {
+                                scope.options.subset[scriptName] = '';
+                            } else {
+                                // automatically check default subset(s)
+                                if (subset.default === true) {
+                                    scope.options.subset[scriptName] = subset.value;
                                 }
-                            });
-                        };
-                        updateSubsetForScript('Arabic');
-                        updateSubsetForScript('Cyrillic');
-                        updateSubsetForScript('Greek');
-                        updateSubsetForScript('Latin');
-                        updateSubsetForScript('Tamil');
+                            }
+                        });
                     },
                     updateSwap: function() {
                         if (this.isScriptSelected('Latin') || this.isScriptSelected('Greek') || this.isScriptSelected('Cyrillic')) {
@@ -1173,8 +1188,12 @@
                     },
                     updateSelectDeselectAll: function(allKey, valuesKey) {
                         if (this.options[allKey]) {
-                            this.options[valuesKey] = this.choices[valuesKey].map(function(item) {
-                                return item.value;
+                            var valuesList = this.options[valuesKey];
+                            var listContains = utils.array.contains;
+                            this.choices[valuesKey].forEach(function(item) {
+                                if (!listContains(valuesList, item.value)) {
+                                    valuesList.push(item.value);
+                                }
                             });
                         } else {
                             this.options[valuesKey] = [];
@@ -1344,6 +1363,10 @@
                     }
                 },
                 mounted: function() {
+                    var indexList = utils.array.index;
+                    this.choicesIndexed.scriptsByValue = indexList(this.choices.scripts, 'value', true);
+                    this.choicesIndexed.stylesByName = indexList(this.choices.styles, 'name', true);
+                    this.choicesIndexed.subsetByName = indexList(this.choices.subset, 'name', true);
                     this.ready = true;
                 },
                 updated: function() {
