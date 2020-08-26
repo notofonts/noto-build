@@ -155,12 +155,12 @@
                             <label class="control-name h5 d-block">Writing Systems Priorities</label>
                             <small class="text-secondary">Order writing systems: in case of common glyphs between fonts, only the first found will be kept.</small>
                         </div>
-                        <div class="col-12 mb-1" v-if="options.scripts.length < 2">
-                            <small class="text-dark mt-3">Select two or more writing systems, please.</small>
+                        <div class="col-12 mt-2 mb-2 text-center" v-if="options.scripts.length < 2">
+                            <small class="text-dark">Select two or more writing systems, please.</small>
                         </div>
                     </div>
                     <div class="row" v-if="options.scripts.length > 1">
-                        <div class="col-12 mb-1">
+                        <div class="col-12 mt-1 mb-1">
                             <draggable v-model="options.scripts" group="scripts_order" @start="options.scripts_dragging=true" @end="options.scripts_dragging=false">
                                 <small class="bg-dark text-white rounded mr-1 mb-1 pt-1 pr-2 pb-1 pl-2 d-inline-block draggable" v-for="item in options.scripts">{{ item|scriptName }} </small>
                             </draggable>
