@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <title>Noto-Build UI</title>
+        <link rel="preconnect" href="https://cdn.jsdelivr.net">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/css/bootstrap.min.css" integrity="sha256-Ww++W3rXBfapN8SZitAvc9jw2Xb+Ixt0rvDsmWmQyTo=" crossorigin="anonymous">
+        <link rel="stylesheet" href="index.css">
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.min.js" integrity="sha256-KSlsysqp7TXtFo/FHjb1T9b425x3hrvzjMWaJyKbpcI=" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.10.2/Sortable.min.js" integrity="sha256-8Ww0c1qKDMdHT2+3s3369kzSXcgIrvqzSwzjdZ5qHDs=" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vuedraggable@2.24.1/dist/vuedraggable.umd.min.js" integrity="sha256-3ux9DyWlRqDg9v2ZHRlKrQPru/To6i2BfQv4lenuRfs=" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@fabiocaccamo/utils.js@0.11.0/dist/utils.min.js" integrity="sha256-S60ZC8AUyIS3MyisO+OjgRrgiJ86OIozBq4f/RLmYGg=" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/clipboard.js@1.0.1/dist/clipboard.min.js" integrity="sha256-HUQP8SUHMJ/pHYah14Em47rjRwTvxaADBSuOJI9DuiU=" crossorigin="anonymous"></script>
+    </head>
+    <body>
+        <div id="app" class="container" v-if="ready" v-cloak>
+            <div class="row">
+                <div class="col-12 mt-4 text-nowrap">
+                    <h1 class="h1">noto-build-ui</h1>
+                    <p class="small"><a href="https://github.com/notofonts/noto-build" target="_blank">view on GitHub &nearr;</a></p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 text-nowrap mt-4">
+                    <label class="control-name h5 d-block mb-3">Font Name</label>
+                    <div class="row align-items-center">
+                        <div class="col-12 col-md-6 mb-3 mb-md-2">
+                            <input class="form-control form-control-sm" type="text" placeholder="My Noto" v-model="options.name">
+                        </div>
+                        <div class="col-6 col-sm-4 col-md-3 mb-2">
+                            <div class="input-group input-group-sm">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">Version</span>
+                                </div>
+                                <input class="form-control form-control-sm" type="text" placeholder="1.000" v-model="options.version">
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Output Flavour</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-2" v-for="item in choices.output">
+                            <div class="custom-control form-control-sm custom-checkbox" v-bind:class="{ 'disabled': item.disabled }">
+                                <input type="checkbox" v-model="options.output" v-bind:id="'output-' + item.value|slugify" v-bind:value="item.value" class="custom-control-input">
+                                <label class="custom-control-label" v-bind:for="'output-' + item.value|slugify">{{ item.name|upper }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="row">
+                        <div class="col-12 col-md-6 mb-2 mb-md-0">
+                            <label class="control-name h5 d-block">Writing Systems Coverage<sup>*</sup></label>
+                        </div>
+                        <div class="col-12 col-md-6 mb-2 mb-md-0">
+                            <input class="form-control form-control-sm" v-model="options.scripts_filter" type="text" placeholder="Filter..." maxlength="30" v-on:input="onChangeScriptsFilter"><button type="button" class="btn btn-sm bg-transparent clear-input-button" aria-hidden="true" @click="clearScriptsFilter" v-if="options.scripts_filter !== ''">×</button>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <div class="custom-control form-control-sm custom-checkbox">
+                                <input type="checkbox" v-model="options.scripts_all" id="scripts-all" v-bind:value="options.scripts_all" v-on:change="onChangeScriptsAll" class="custom-control-input">
+                                <label class="custom-control-label text-secondary" for="scripts-all"><small>Select / Deselect all</small></label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3" v-for="item in choices.scripts" v-if="(!item.hidden) && ((item.featured || options.scripts_show_all) || (!item.featured && !options.scripts_show_all && options.scripts_filter && options.scripts_filter !== ''))">
+                            <div class="custom-control form-control-sm custom-checkbox" v-bind:class="{ 'control-featured':item.featured }">
+                                <input type="checkbox" v-model="options.scripts" v-bind:id="'scripts-' + item.value|slugify" v-bind:value="item.value" v-on:change="onChangeScripts" class="custom-control-input" required>
+                                <label class="custom-control-label" v-bind:for="'scripts-' + item.value|slugify">
+                                    <template v-if="item.featured && options.scripts_show_all"><strong>{{ item.name }}</strong></template>
+                                    <template v-else>{{ item.name }}</template>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mt-3 text-center" v-if="!(options.scripts_filter && options.scripts_filter !== '')">
+                            <button type="button" class="btn btn-sm text-secondary btn-link border-0" @click="toggleScriptsShowAll">
+                                <small>
+                                    <template v-if="options.scripts_show_all">Show less&hellip;</template>
+                                    <template v-else>Show more&hellip;</template>
+                                </small>
+                            </button>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="control-name h5 d-block">Writing Systems Priorities</label>
+                            <small class="text-secondary">Order writing systems: in case of common glyphs between fonts, only the first found will be kept.</small>
+                        </div>
+                        <div class="col-12 mt-2 mb-2 text-center" v-if="options.scripts.length < 2">
+                            <small class="text-dark">Select two or more writing systems, please.</small>
+                        </div>
+                    </div>
+                    <div class="row" v-if="options.scripts.length > 1">
+                        <div class="col-12 mt-1 mb-1">
+                            <draggable v-model="options.scripts" group="scripts_order" @start="options.scripts_dragging=true" @end="options.scripts_dragging=false">
+                                <small class="bg-dark text-white rounded mr-1 mb-1 pt-1 pr-2 pb-1 pl-2 d-inline-block draggable" v-for="item in options.scripts">{{ item|scriptName }} </small>
+                            </draggable>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Type of Contrast<sup>*</sup></label>
+                    <div class="row">
+                        <div class="col-6 col-sm-2" v-for="item in choices.contrast">
+                            <div class="custom-control form-control-sm custom-radio">
+                                <input type="radio" v-model="options.contrast" v-bind:id="'contrast-' + item.value|slugify" v-bind:value="item.value" v-on:change="onChangeContrast" class="custom-control-input" required>
+                                <label class="custom-control-label" v-bind:for="'contrast-' + item.value|slugify">{{ item.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Style</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-2" v-for="item in choices.styles">
+                            <div class="custom-control form-control-sm custom-checkbox" v-bind:class="{ 'disabled': item.disabled }">
+                                <input type="checkbox" v-model="options.styles" v-bind:id="'styles-' + item.value|slugify" v-bind:value="item.value" v-bind:disabled="item.disabled" v-on:change="onChangeStyles" class="custom-control-input">
+                                <label class="custom-control-label" v-bind:for="'styles-' + item.value|slugify">{{ item.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="control-name h5 d-block _mb-3">Weight</label>
+                            <div class="custom-control form-control-sm custom-checkbox">
+                                <input type="checkbox" v-model="options.weights_all" id="weights-all" v-bind:value="options.weights_all" v-on:change="onChangeWeightsAll" indeterminate class="custom-control-input">
+                                <label class="custom-control-label text-secondary" for="weights-all"><small>Select / Deselect all</small></label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3" v-for="item in choices.weight">
+                            <div class="custom-control form-control-sm custom-checkbox">
+                                <input type="checkbox" v-model="options.weight" v-bind:id="'weight-' + item.value|slugify" v-bind:value="item.value" class="custom-control-input">
+                                <label class="custom-control-label" v-bind:for="'weight-' + item.value|slugify">{{ item.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="control-name h5 d-block">Width</label>
+                            <div class="custom-control form-control-sm custom-checkbox">
+                                <input type="checkbox" v-model="options.widths_all" id="widths-all" v-bind:value="options.widths_all" v-on:change="onChangeWidthsAll" indeterminate class="custom-control-input">
+                                <label class="custom-control-label text-secondary" for="widths-all"><small>Select / Deselect all</small></label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3" v-for="item in choices.width">
+                            <div class="custom-control form-control-sm custom-checkbox">
+                                <input type="checkbox" v-model="options.width" v-bind:id="'width-' + item.value|slugify" v-bind:value="item.value" class="custom-control-input">
+                                <label class="custom-control-label" v-bind:for="'width-' + item.value|slugify">{{ item.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Metrics</label>
+                    <div class="row">
+                        <div class="col-12 col-sm-6 mb-2" v-for="(item, key) in choices.metrics">
+                            <div class="row align-items-center no-gutters">
+                                <div class="col-3">
+                                    <label class="mb-0" v-bind:for="'metrics-' + item.name|slugify">{{ item.name }}</label>
+                                </div>
+                                <div class="col-6 pl-3 pr-3">
+                                    <input type="range" class="form-control form-control-sm" v-bind:min="item.min" v-bind:max="item.max" step="10" v-model="options.metrics[key]">
+                                </div>
+                                <div class="col-3">
+                                    <input type="number" class="form-control form-control-sm text-center rounded" placeholder="0" v-bind:id="'metrics-' + item.name|slugify" v-model="options.metrics[key]">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">Hinting</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3">
+                            <div class="custom-control custom-control-inline form-control-sm custom-radio">
+                                <input type="radio" id="hinted-no" class="custom-control-input" v-model="options.hinted" v-bind:value="false">
+                                <label class="custom-control-label" for="hinted-no">No</label>
+                            </div>
+                            <div class="custom-control custom-control-inline form-control-sm custom-radio">
+                                <input type="radio" id="hinted-yes" class="custom-control-input" v-model="options.hinted" v-bind:value="true">
+                                <label class="custom-control-label" for="hinted-yes">Yes</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <label class="control-name h5 d-block mb-3">UI Version</label>
+                    <div class="row">
+                        <div class="col-6 col-sm-4 col-md-3">
+                            <div class="custom-control custom-control-inline form-control-sm custom-radio">
+                                <input type="radio" id="ui-no" class="custom-control-input" v-model="options.ui" v-bind:value="false">
+                                <label class="custom-control-label" for="ui-no">No</label>
+                            </div>
+                            <div class="custom-control custom-control-inline form-control-sm custom-radio">
+                                <input type="radio" id="ui-yes" class="custom-control-input" v-model="options.ui" v-bind:value="true">
+                                <label class="custom-control-label" for="ui-yes">Yes</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 mb-2">
+                    <label class="control-name h5 d-block mb-3">Coverage Presets</label>
+                    <div class="row mb-2">
+                        <div class="col-6 col-sm-4 col-md-4 mt-2 mb-4" v-for="group in choices.subset">
+                            <label class="control-name d-block h6">{{ group.name }}</label>
+                            <div class="custom-control form-control-sm custom-radio" v-for="item in group.subsets" v-bind:class="{ 'disabled': item.disabled }">
+                                <input class="custom-control-input" type="radio" v-bind:id="'subset-' + (group.name + '-' + item.name)|slugify" v-model="options.subset[group.name]" v-bind:value="item.value" v-bind:disabled="item.disabled">
+                                <label class="custom-control-label" v-bind:for="'subset-' + (group.name + '-' + item.name)|slugify">{{ item.name }}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="control-name d-block h6">Character Subset to Keep</label>
+                            <textarea class="form-control form-control-sm" rows="3" v-model="options.subset_chars" v-on:input="onChangeCharacterSubset"></textarea>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 mb-5">
+                    <label class="control-name h5 d-block mb-3">Alternate Lettershapes</label>
+                    <div class="row mb-2">
+                        <div class="col-12 col-sm-4 mb-3 mb-sm-0 border-right">
+                            <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !(options.swap_enabled && options.swap_altIJ_enabled) }">
+                                <input type="radio" id="swap-altij-no" class="custom-control-input" v-model="options.swap_altIJ" v-bind:value="false">
+                                <label class="custom-control-label" for="swap-altij-no">Default I and J</label>
+                            </div>
+                            <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !(options.swap_enabled && options.swap_altIJ_enabled) }">
+                                <input type="radio" id="swap-altij-yes" class="custom-control-input" v-model="options.swap_altIJ" v-bind:value="true">
+                                <label class="custom-control-label" for="swap-altij-yes">Alternates I and J</label>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-8">
+                            <div class="row">
+                                <div class="col-12 col-md-6">
+                                    <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !options.swap_enabled }">
+                                        <input type="radio" id="swap-tlf" class="custom-control-input" v-model="options.swap_figures" value="">
+                                        <label class="custom-control-label" for="swap-tlf">Tabular Lining Figures</label>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !options.swap_enabled }">
+                                        <input type="radio" id="swap-plf" class="custom-control-input" v-model="options.swap_figures" value="plf">
+                                        <label class="custom-control-label" for="swap-plf">Proportional Lining Figures</label>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !options.swap_enabled }">
+                                        <input type="radio" id="swap-tosf" class="custom-control-input" v-model="options.swap_figures" value="tosf">
+                                        <label class="custom-control-label" for="swap-tosf">Tabular Old Style Figures</label>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="custom-control form-control-sm custom-radio" v-bind:class="{ 'disabled': !options.swap_enabled }">
+                                        <input type="radio" id="swap-osf" class="custom-control-input" v-model="options.swap_figures" value="osf">
+                                        <label class="custom-control-label" for="swap-osf">Old Style Figures</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="command-container">
+                <div class="row border-top">
+                    <div class="col-12 pt-4 pb-4">
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label class="control-name d-block h6 white">Command</label>
+                                <div class="bg-light border rounded d-block">
+                                    <code class="small d-block pt-2 pb-2 pl-3 pr-3" v-bind:class="{ 'disabled': !commandOk }"><small class="pb-2">{{ command }}</small></code>
+                                </div>
+                            </div>
+                            <div class="col-12 text-right" v-bind:class="{ 'disabled': !commandOk }">
+                                <template v-if="copyCommandDone">
+                                    <button type="button" class="btn btn-sm btn-info border-0 pl-3 pr-3">&#x2713; Copied!</button>
+                                </template>
+                                <template v-else>
+                                    <button type="button" class="btn btn-sm btn-dark border-0 pl-3 pr-3" @click="copyCommand">&laquo; Copy</button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="index.js"></script>
+    </body>
+</html>
