@@ -330,9 +330,9 @@ class Notobuilder:
         #1. FIND THE REPO NAME
         self.buildRepoName()
         #2. DOWNLOAD FONTS AND SWITCH CONTRAST STYLE IF NEEDED
-        dl = Download(self.repoNames, self.scriptsFolder, self.hinted)
-        dl.dwnldFonts()
-        self.repoNames = dl.getEditedRepoNames()
+        # dl = Download(self.repoNames, self.scriptsFolder, self.hinted)
+        # dl.dwnldFonts()
+        # self.repoNames = dl.getEditedRepoNames()
         #3. BUILD ALL WIDTH-WEIGHT STYLE NAME
         self.buildWghtWdthstyleName()
         #4. FOR EACH STYLE ASKED : (e.g. Bold, then CondensedBold, etc.)
@@ -669,7 +669,6 @@ class Notobuilder:
 
         while len(fonts2test) > 1:
             for i in fonts2test[1:]:
-                print(fonts2test[0], i)
                 ft2uni_temp = dict()
                 ft2uni_temp[fonts2test[0]] = ft2unilist[fonts2test[0]]
                 ft2uni_temp[i] = ft2unilist[i]
@@ -680,7 +679,7 @@ class Notobuilder:
                         )
                 if len(duplicates) != 0:
                     removedUni = []
-                    for d in duplicates:
+                    for d in set(duplicates+identicAlreadyDone):
                         u = str(hex(d)).upper()[2:]
                         uni = uniNaming[len(u)] + u
                         removedUni.append(uni)
@@ -717,7 +716,8 @@ class Notobuilder:
                 in glifToRemove
                 ):
                 print("    INFO:", os.path.basename(path).split("-")[0], "subseted")
-                print(self.script2warnSubset[os.path.basename(path).split("-")[0]])
+                if os.path.basename(path).split("-")[0] in self.script2warnSubset:
+                    print(self.script2warnSubset[os.path.basename(path).split("-")[0]])
                 keep = self.population(path, glifToRemove)
                 font = self.subsetter(ttLib.TTFont(path), keep)
                 font.save(os.path.join(self.destination, os.path.basename(path)))
@@ -812,7 +812,7 @@ class Notobuilder:
     def getIdentic(self, mydict):
         values = list(mydict.values())
         identic = copy.deepcopy(set(values[0]))
-        identic2display = []
+        identic2add = []
         allDuplicates = []
         identicAlreadyDone = []
         for x in values[1:]:
@@ -821,10 +821,10 @@ class Notobuilder:
         for i in identic:
             if i not in self.uniGlyphsAlreadySorted:
                 self.uniGlyphsAlreadySorted.append(i)
-                identic2display.append(i)
+                identic2add.append(i)
             else:
                 identicAlreadyDone.append(i)
-        return identicAlreadyDone, identic2display
+        return identicAlreadyDone, identic2add
 
     def duplicate(self, head, tail):
         self.toKeep = {**self.uni2glyphname(head), **self.toKeep}
