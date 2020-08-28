@@ -73,6 +73,9 @@ class Download:
                 if file["name"] == "instance_ttf":
                     self.sha = file["sha"]
         return self.sha
+        # if response.getcode() != 404
+        # elif response.getcode() == 404:
+        #     print("Too much Gituh Requests.")
 
     def writeSha(self, repoName):
         shaTxt = os.path.join(self.notoFontsFolder, repoName, "sha.md")
@@ -94,14 +97,14 @@ class Download:
                     + "/tree/master/fonts/ttf/hinted/instance_ttf"
                 )
             try:
-                _ = self.getSha(i)
+                r = urllib.request.urlretrieve("https://github.com/notofonts/" + i)
                 api_url = self.createUrl(url)
             except:
                 try:
                     askedByUser = i
                     i = i.replace("Serif", "Sans")
                     url = url.replace("Serif", "Sans")
-                    _ = self.getSha(i)
+                    r = urllib.request.urlretrieve("https://github.com/notofonts/" + i)
                     for z in range(len(self.editedRepoNames)):
                         if self.editedRepoNames[z] == askedByUser:
                             self.editedRepoNames[z] = i
@@ -155,15 +158,12 @@ class Download:
                             )
         if len(branch) == 0:
             branch = re.findall(r"/blob/(.*?)/", url)[0]
-            # download_dirs = re.findall(r"/blob/" + branch + r"/(.*)", url)[0]
             api_url = re.sub(r"/blob/.*?/", "/contents/", api_url)
         else:
             branch = branch[0]
-            # download_dirs = re.findall(r"/tree/" + branch + r"/(.*)", url)[0]
             api_url = re.sub(r"/tree/.*?/", "/contents/", api_url)
 
         api_url = api_url + "?ref=" + branch
-        # return api_url, download_dirs
         return api_url
 
     def getFilepathFromUrl(self, url, dirpath):
@@ -178,6 +178,7 @@ class Download:
 
 
 class GlyphsToRemove:
+
     def __init__(self):
         self.writingSys2glifToRemove = {}
 
@@ -205,7 +206,6 @@ class GlyphsToRemove:
 
 
 class Notobuilder:
-
     """ docstring
     """
 
@@ -268,7 +268,7 @@ class Notobuilder:
         ]
 
         self.arabicFamilies = [
-            "NotoNaskhArabic", "NotoNaskhArabic"
+            "NotoNaskhArabic", "NotoNaskhArabicUI"
         ]
 
         self.repo_naming_translation = {
@@ -302,8 +302,7 @@ class Notobuilder:
 
         self.sansOnly = ["CanadianAboriginal", "Kufi", "Music",
                         "InscriptionalPahlavi", "PsalterPahlavi",
-                        "Javanese"
-                        ]
+                        "Javanese"]
 
         self.fonts_with_ui_version = [
             "NotoSansKannada",
@@ -418,11 +417,9 @@ class Notobuilder:
         self.panEuropeanSub = []
         lgcSub = [s for s in self.writingSystems if s in ["Latin", "Greek", "Cyrillic"]]
         if 0 < len(lgcSub) < 3 and "Full" not in self.preset:
-            # add folder
             europeanSubsetFolder = os.path.join(self.notoFontsFolder, "EuropeanSubset")
             if not os.path.exists(europeanSubsetFolder):
                 os.makedirs(europeanSubsetFolder)
-            # make the list of glyphs to keep
             for script in lgcSub:
                 self.readJson(
                     os.path.join(self.scriptsFolder, "subsets", script.lower() + "_subsets.json"), script)
@@ -456,7 +453,6 @@ class Notobuilder:
                 font.save(newpath)
                 self.fonts2merge_list = self.listReplacer(ftpath, newpath, self.fonts2merge_list)
 
-
     def buildRepoName(self):
         self.repoNames = []
         for script in self.writingSystems:
@@ -485,8 +481,6 @@ class Notobuilder:
                 self.repoNames.append(name)
         if "ExtendedTamil" in self.preset:
             self.repoNames.append("NotoSansTamilSupplement")
-
-        print(self.repoNames)
 
 
     def buildWghtWdthstyleName(self):
@@ -643,7 +637,6 @@ class Notobuilder:
                                     "[FALLBACK]",
                                 )
                                 fallback = True
-
 
     def ft2uni(self):
         ft2unilist = dict()
@@ -1046,7 +1039,7 @@ class Notobuilder:
             vMaj = self.version.split(".")[0]
             vMin = self.version.split(".")[1]
         else :
-            vMaj, vMin = self.version, "00"
+            vMaj, vMin = self.version, "000"
         isThere17 = False
         isThere16 = False
         if self.newName:
@@ -1147,16 +1140,16 @@ def main():
     parser.add_argument("--swap", nargs="*", help="Replace the I and J shapes by the alternate ones (arg : 'altIJ');"+
         " or replace default figures (that are lining and monospaced) by : - old style figures (arg: 'osf'),"+
         " - or tabular old style figures (arg: 'tosf'); or proportional lining figures ('plf').")
-    parser.add_argument("--preset", nargs="*")
-    parser.add_argument("--weight", nargs="*")
-    parser.add_argument("--width", nargs="*")
-    parser.add_argument("--hinted", action="store_true")
+    parser.add_argument("--preset", nargs="*", help ="Premade subsets.")
+    parser.add_argument("--weight", nargs="*", help="Input the weight(s) you want. Default is Regular")
+    parser.add_argument("--width", nargs="*", help="Input the weight(s) you want. Normal is default")
+    parser.add_argument("--hinted", action="store_true", help="Use the hinted version of the fonts.")
     parser.add_argument("--ui", help="Use the UI version of the family if it exists." +
         " Tighter vertical metrics and mark positioning.", action="store_true")
-    parser.add_argument("--metrics", nargs=2, help="")
+    parser.add_argument("--metrics", nargs=2, help="Modify the vertical metrics.")
     parser.add_argument("--subset", nargs=1)
     parser.add_argument("--compatibility", action="store_true")
-    parser.add_argument("--version", nargs=1, help="")
+    parser.add_argument("--version", nargs=1, help="Change the version number.")
     args = parser.parse_args()
 
     version = "1.000"
@@ -1206,18 +1199,17 @@ def main():
         args.scripts,  # list of writing systems
         args.contrast,  # sans or serif
         styles,  # italic, kufi, display, etc…
-        preset,  # TBD
-        swapedstyles,  # TODO
+        preset,  # pre made subset
+        swapedstyles,  # swap the IJ shapes, use [tabular] old style/lining figures as default
         weight,  # list of weight. Set as Regular if not specified
         width,  # list of width. Set as Normal if not specified
         hinted,  # take unhinted fonts as default.
-        ui,
-        metrics,
-        compatibility,
-        subset,
-        version
+        ui, #use the UI version if it exists
+        metrics, #modify the vertical metrics
+        compatibility, #choose only common width / weights
+        subset, # keep only the asked glyphs
+        version # change the version number
     )
-
 
 if __name__ == "__main__":
     sys.exit(main())
