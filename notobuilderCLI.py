@@ -330,9 +330,9 @@ class Notobuilder:
         #1. FIND THE REPO NAME
         self.buildRepoName()
         #2. DOWNLOAD FONTS AND SWITCH CONTRAST STYLE IF NEEDED
-        # dl = Download(self.repoNames, self.scriptsFolder, self.hinted)
-        # dl.dwnldFonts()
-        # self.repoNames = dl.getEditedRepoNames()
+        dl = Download(self.repoNames, self.scriptsFolder, self.hinted)
+        dl.dwnldFonts()
+        self.repoNames = dl.getEditedRepoNames()
         #3. BUILD ALL WIDTH-WEIGHT STYLE NAME
         self.buildWghtWdthstyleName()
         #4. FOR EACH STYLE ASKED : (e.g. Bold, then CondensedBold, etc.)
