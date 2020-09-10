@@ -1,6 +1,6 @@
 defcon
 fontTools
-urllib
+urllib3
 requests
 argparse
 fs
