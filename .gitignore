@@ -1,3 +1,4 @@
-.pyc
 NotoFonts/*
 Custom_Fonts/*
+__pycache__/
+*.pyc
