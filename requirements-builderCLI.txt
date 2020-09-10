@@ -1,0 +1,6 @@
+defcon
+fontTools
+urllib
+requests
+argparse
+fs
